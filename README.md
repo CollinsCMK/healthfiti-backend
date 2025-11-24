@@ -47,6 +47,7 @@ cd healthfiti-backend
 ```bash
 # Copy the example file
 cp .env.example .env
+```
 
 3. Run database migrations:
 
