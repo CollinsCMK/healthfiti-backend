@@ -1,0 +1,4 @@
+/target
+/migration-main/target/
+/migration-tenant/target/
+.env

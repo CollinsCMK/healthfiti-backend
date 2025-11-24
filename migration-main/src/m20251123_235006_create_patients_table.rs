@@ -1,0 +1,155 @@
+use sea_orm_migration::{prelude::{extension::postgres::Type, *}, schema::*};
+
+#[derive(DeriveMigrationName)]
+pub struct Migration;
+
+#[async_trait::async_trait]
+impl MigrationTrait for Migration {
+    async fn up(&self, manager: &SchemaManager) -> Result<(), DbErr> {
+        manager
+            .create_type(
+                Type::create()
+                    .as_enum(Alias::new("gender"))
+                    .values([
+                        Alias::new("male"),
+                        Alias::new("female"),
+                        Alias::new("other"),
+                    ])
+                    .to_owned(),
+            )
+            .await?;
+        
+        manager
+            .create_table(
+                Table::create()
+                    .table(Patients::Table)
+                    .if_not_exists()
+                    .col(pk_auto(Patients::Id))
+                    .col(
+                        uuid_uniq(Patients::Pid)
+                            .default(SimpleExpr::Custom("gen_random_uuid()".into())),
+                    )
+                    .col(uuid_uniq(Patients::SsoUserId).null())
+                    .col(string(Patients::FirstName))
+                    .col(string(Patients::LastName))
+                    .col(string_null(Patients::MiddleName))
+                    .col(date(Patients::Dob))
+                    .col(enumeration_null(
+                        Patients::Gender,
+                        Alias::new("gender"),
+                        vec![
+                            Alias::new("male"),
+                            Alias::new("female"),
+                            Alias::new("other"),
+                        ],
+                    ))
+                    .col(string_uniq(Patients::NationalID).null())
+                    .col(string_uniq(Patients::PassportNumber).null())
+                    .col(string_uniq(Patients::Email).null())
+                    .col(string_null(Patients::CountryCode))
+                    .col(string_uniq(Patients::PhoneNumber).null())
+                    .col(text_null(Patients::Address))
+                    .col(string_null(Patients::City))
+                    .col(string_null(Patients::County))
+                    .col(string_null(Patients::Country))
+                    .col(uuid_uniq(Patients::PrimaryTenantId).null())
+                    .col(string(Patients::BloodType))
+                    .col(array_null(Patients::Allergies, ColumnType::String(StringLen::None)))
+                    .col(array_null(Patients::MedicalConditions, ColumnType::String(StringLen::None)))
+                    .col(string_null(Patients::EmergencyContactName))
+                    .col(string_null(Patients::EmergencyContactCountryCode))
+                    .col(string_uniq(Patients::EmergencyContactPhoneNumber).null())
+                    .col(timestamp_null(Patients::DeletedAt))
+                    .col(
+                        timestamp(Patients::CreatedAt)
+                            .default(SimpleExpr::Keyword(Keyword::CurrentTimestamp)),
+                    )
+                    .col(
+                        timestamp(Patients::UpdatedAt)
+                            .default(SimpleExpr::Keyword(Keyword::CurrentTimestamp)),
+                    )
+                    .to_owned(),
+            )
+            .await?;
+
+        let _idx_patients_email = Index::create()
+            .unique()
+            .name("idx_patients_email")
+            .table(Patients::Table)
+            .col(Patients::Email)
+            .to_owned();
+
+
+        let _idx_patients_phone = Index::create()
+            .unique()
+            .name("idx_patients_phone")
+            .table(Patients::Table)
+            .col(Patients::PhoneNumber)
+            .to_owned();
+
+        let _idx_patients_national_id = Index::create()
+            .unique()
+            .name("idx_patients_national_id")
+            .table(Patients::Table)
+            .col(Patients::NationalID)
+            .to_owned();
+
+        let _idx_patients_sso_user_id = Index::create()
+            .unique()
+            .name("idx_patients_sso_user_id")
+            .table(Patients::Table)
+            .col(Patients::SsoUserId)
+            .to_owned();
+
+        let _idx_patients_primary_tenant_id = Index::create()
+            .unique()
+            .name("idx_patients_primary_tenant_id")
+            .table(Patients::Table)
+            .col(Patients::PrimaryTenantId)
+            .to_owned();
+
+        Ok(())
+    }
+
+    async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
+        manager
+            .drop_table(Table::drop().table(Patients::Table).to_owned())
+            .await?;
+
+        manager
+            .drop_type(Type::drop().name(Alias::new("gender")).to_owned())
+            .await
+    }
+}
+
+#[derive(DeriveIden)]
+enum Patients {
+    Table,
+    Id,
+    Pid,
+    SsoUserId,
+    FirstName,
+    LastName,
+    MiddleName,
+    Dob,
+    Gender,
+    NationalID,
+    PassportNumber,
+    Email,
+    CountryCode,
+    PhoneNumber,
+    Address,
+    City,
+    County,
+    Country,
+    PrimaryTenantId,
+    BloodType,
+    Allergies,
+    MedicalConditions,
+    EmergencyContactName,
+    EmergencyContactCountryCode,
+    EmergencyContactPhoneNumber,
+    DeletedAt,
+    UpdatedAt,
+    CreatedAt,
+}
