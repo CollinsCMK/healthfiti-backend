@@ -9,39 +9,40 @@ impl MigrationTrait for Migration {
         manager
             .create_table(
                 Table::create()
-                    .table(TenantFeatures::Table)
+                    .table(FacilityStaff::Table)
                     .if_not_exists()
-                    .col(pk_auto(TenantFeatures::Id))
+                    .col(pk_auto(FacilityStaff::Id))
                     .col(
-                        uuid_uniq(TenantFeatures::Pid)
+                        uuid_uniq(FacilityStaff::Pid)
                             .default(SimpleExpr::Custom("gen_random_uuid()".into())),
                     )
-                    .col(integer(TenantFeatures::TenantId))
+                    .col(integer(FacilityStaff::FacilityId))
                     .foreign_key(
                         ForeignKey::create()
-                            .name("fk-tenant_features-tenant_id")
-                            .from(TenantFeatures::Table, TenantFeatures::TenantId)
-                            .to(Tenants::Table, Tenants::Id)
+                            .name("fk-facility_staff-facility_id")
+                            .from(FacilityStaff::Table, FacilityStaff::FacilityId)
+                            .to(Facilities::Table, Facilities::Id)
                             .on_delete(ForeignKeyAction::Cascade),
                     )
-                    .col(integer(TenantFeatures::FeatureId))
+                    .col(integer(FacilityStaff::UserId))
                     .foreign_key(
                         ForeignKey::create()
-                            .name("fk-tenant_features-feature_id")
-                            .from(TenantFeatures::Table, TenantFeatures::FeatureId)
-                            .to(Features::Table, Features::Id)
+                            .name("fk-facility_staff-user_id")
+                            .from(FacilityStaff::Table, FacilityStaff::UserId)
+                            .to(Users::Table, Users::Id)
                             .on_delete(ForeignKeyAction::Cascade),
                     )
-                    .col(boolean(TenantFeatures::IsEnabled).default(true))
+                    .col(string_null(FacilityStaff::Position))
+                    .col(boolean(FacilityStaff::IsManager).default(false))
+                    .col(timestamp_null(FacilityStaff::DeletedAt))
                     .col(
-                        timestamp(TenantFeatures::CreatedAt)
+                        timestamp(FacilityStaff::CreatedAt)
                             .default(SimpleExpr::Keyword(Keyword::CurrentTimestamp)),
                     )
                     .col(
-                        timestamp(TenantFeatures::UpdatedAt)
+                        timestamp(FacilityStaff::UpdatedAt)
                             .default(SimpleExpr::Keyword(Keyword::CurrentTimestamp)),
                     )
-                    .col(timestamp_null(TenantFeatures::DeletedAt))
                     .to_owned(),
             )
             .await
@@ -49,32 +50,33 @@ impl MigrationTrait for Migration {
 
     async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
         manager
-            .drop_table(Table::drop().table(TenantFeatures::Table).to_owned())
+            .drop_table(Table::drop().table(FacilityStaff::Table).to_owned())
             .await
     }
 }
 
 #[derive(DeriveIden)]
-enum TenantFeatures {
+enum FacilityStaff {
     Table,
     Id,
     Pid,
-    TenantId,
-    FeatureId,
-    IsEnabled,
-    CreatedAt,
-    UpdatedAt,
+    FacilityId,
+    UserId,
+    Position,
+    IsManager,
     DeletedAt,
+    UpdatedAt,
+    CreatedAt,
 }
 
 #[derive(DeriveIden)]
-enum Tenants {
+enum Facilities {
     Table,
     Id,
 }
 
 #[derive(DeriveIden)]
-enum Features {
+enum Users {
     Table,
     Id,
 }

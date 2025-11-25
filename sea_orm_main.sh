@@ -1,4 +1,7 @@
 #!/bin/bash
+set -a
+source .env
+set +a
 
 # Usage:
 #   ./sea_orm_main.sh refresh   # Drop all and reapply migrations, then regenerate entities

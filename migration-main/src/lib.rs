@@ -8,6 +8,7 @@ mod m20251124_001220_create_subscription_plan_features_table;
 mod m20251124_001437_create_tenants_table;
 mod m20251124_002548_create_tenant_features_table;
 mod m20251124_002621_create_tenant_subscriptions_table;
+mod m20251124_125559_create_patient_access_permissions_table;
 
 pub struct Migrator;
 
@@ -23,6 +24,7 @@ impl MigratorTrait for Migrator {
             Box::new(m20251124_001437_create_tenants_table::Migration),
             Box::new(m20251124_002548_create_tenant_features_table::Migration),
             Box::new(m20251124_002621_create_tenant_subscriptions_table::Migration),
+            Box::new(m20251124_125559_create_patient_access_permissions_table::Migration),
         ]
     }
 }

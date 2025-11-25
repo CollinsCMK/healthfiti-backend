@@ -1,4 +1,7 @@
-use sea_orm_migration::{prelude::{extension::postgres::Type, *}, schema::*};
+use sea_orm_migration::{
+    prelude::{extension::postgres::Type, *},
+    schema::*,
+};
 
 #[derive(DeriveMigrationName)]
 pub struct Migration;
@@ -18,7 +21,7 @@ impl MigrationTrait for Migration {
                     .to_owned(),
             )
             .await?;
-        
+
         manager
             .create_table(
                 Table::create()
@@ -30,10 +33,11 @@ impl MigrationTrait for Migration {
                             .default(SimpleExpr::Custom("gen_random_uuid()".into())),
                     )
                     .col(uuid_uniq(Patients::SsoUserId).null())
-                    .col(string(Patients::FirstName))
-                    .col(string(Patients::LastName))
+                    .col(string_null(Patients::FirstName))
+                    .col(string_null(Patients::LastName))
                     .col(string_null(Patients::MiddleName))
-                    .col(date(Patients::Dob))
+                    .col(string_null(Patients::PhotoUrl))
+                    .col(date_null(Patients::Dob))
                     .col(enumeration_null(
                         Patients::Gender,
                         Alias::new("gender"),
@@ -52,13 +56,17 @@ impl MigrationTrait for Migration {
                     .col(string_null(Patients::City))
                     .col(string_null(Patients::County))
                     .col(string_null(Patients::Country))
-                    .col(uuid_uniq(Patients::PrimaryTenantId).null())
-                    .col(string(Patients::BloodType))
-                    .col(array_null(Patients::Allergies, ColumnType::String(StringLen::None)))
-                    .col(array_null(Patients::MedicalConditions, ColumnType::String(StringLen::None)))
-                    .col(string_null(Patients::EmergencyContactName))
-                    .col(string_null(Patients::EmergencyContactCountryCode))
-                    .col(string_uniq(Patients::EmergencyContactPhoneNumber).null())
+                    .col(uuid_null(Patients::PrimaryTenantId))
+                    .col(string_null(Patients::BloodType))
+                    .col(array_null(
+                        Patients::Allergies,
+                        ColumnType::String(StringLen::None),
+                    ))
+                    .col(array_null(
+                        Patients::MedicalConditions,
+                        ColumnType::String(StringLen::None),
+                    ))
+                    .col(json_binary_null(Patients::EmergencyContact))
                     .col(timestamp_null(Patients::DeletedAt))
                     .col(
                         timestamp(Patients::CreatedAt)
@@ -78,7 +86,6 @@ impl MigrationTrait for Migration {
             .table(Patients::Table)
             .col(Patients::Email)
             .to_owned();
-
 
         let _idx_patients_phone = Index::create()
             .unique()
@@ -131,6 +138,7 @@ enum Patients {
     FirstName,
     LastName,
     MiddleName,
+    PhotoUrl,
     Dob,
     Gender,
     NationalID,
@@ -146,9 +154,7 @@ enum Patients {
     BloodType,
     Allergies,
     MedicalConditions,
-    EmergencyContactName,
-    EmergencyContactCountryCode,
-    EmergencyContactPhoneNumber,
+    EmergencyContact,
     DeletedAt,
     UpdatedAt,
     CreatedAt,

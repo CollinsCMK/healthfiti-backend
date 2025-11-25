@@ -1895,6 +1895,7 @@ dependencies = [
  "log",
  "migration_main",
  "migration_tenant",
+ "regex",
  "reqwest",
  "sea-orm 1.1.19",
  "serde",

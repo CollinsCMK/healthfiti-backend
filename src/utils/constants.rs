@@ -1,6 +1,7 @@
 use std::env;
 
 use lazy_static::lazy_static;
+use uuid::Uuid;
 
 lazy_static! {
     pub static ref APP_NAME: String = set_app_name();
@@ -17,6 +18,9 @@ lazy_static! {
     pub static ref MINIO_REGION: String = set_minio_region();
     pub static ref MINIO_BUCKET: String = set_minio_bucket();
     pub static ref ALLOWED_ORIGINS: Vec<String> = allowed_origins();
+    pub static ref SSO_BASE_URL: String = sso_base_url();
+    pub static ref SSO_CLIENT_ID: String = sso_client_id();
+    pub static ref SSO_CLIENT_SECRET: String = sso_client_secret();
 }
 
 fn set_app_name() -> String {
@@ -101,4 +105,21 @@ fn allowed_origins() -> Vec<String> {
         .split(',')
         .map(|s| s.trim().to_string())
         .collect::<Vec<String>>()
+}
+
+fn sso_base_url() -> String {
+    dotenv::dotenv().ok();
+    env::var("SSO_BASE_URL").expect("Environment variable 'SSO_BASE_URL' is required but not set.")
+}
+
+fn sso_client_id() -> String {
+    dotenv::dotenv().ok();
+    env::var("SSO_CLIENT_ID")
+        .expect("Environment variable 'SSO_CLIENT_ID' is required but not set.")
+}
+
+fn sso_client_secret() -> String {
+    dotenv::dotenv().ok();
+    env::var("SSO_CLIENT_SECRET")
+        .expect("Environment variable 'SSO_CLIENT_SECRET' is required but not set.")
 }

@@ -9,24 +9,25 @@ impl MigrationTrait for Migration {
         manager
             .create_table(
                 Table::create()
-                    .table(Features::Table)
+                    .table(ServiceCategories::Table)
                     .if_not_exists()
-                    .col(pk_auto(Features::Id))
+                    .col(pk_auto(ServiceCategories::Id))
                     .col(
-                        uuid_uniq(Features::Pid)
+                        uuid_uniq(ServiceCategories::Pid)
                             .default(SimpleExpr::Custom("gen_random_uuid()".into())),
                     )
-                    .col(string_uniq(Features::Name))
-                    .col(text_null(Features::Description))
+                    .col(string_uniq(ServiceCategories::Name))
+                    .col(text_null(ServiceCategories::Description))
+                    .col(json_binary_null(ServiceCategories::Metadata))
                     .col(
-                        timestamp(Features::CreatedAt)
+                        timestamp(ServiceCategories::CreatedAt)
                             .default(SimpleExpr::Keyword(Keyword::CurrentTimestamp)),
                     )
                     .col(
-                        timestamp(Features::UpdatedAt)
+                        timestamp(ServiceCategories::UpdatedAt)
                             .default(SimpleExpr::Keyword(Keyword::CurrentTimestamp)),
                     )
-                    .col(timestamp_null(Features::DeletedAt))
+                    .col(timestamp_null(ServiceCategories::DeletedAt))
                     .to_owned(),
             )
             .await
@@ -34,18 +35,19 @@ impl MigrationTrait for Migration {
 
     async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
         manager
-            .drop_table(Table::drop().table(Features::Table).to_owned())
+            .drop_table(Table::drop().table(ServiceCategories::Table).to_owned())
             .await
     }
 }
 
 #[derive(DeriveIden)]
-enum Features {
+enum ServiceCategories {
     Table,
     Id,
     Pid,
     Name,
     Description,
+    Metadata,
     CreatedAt,
     UpdatedAt,
     DeletedAt,
