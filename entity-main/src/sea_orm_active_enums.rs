@@ -17,6 +17,20 @@ pub enum Gender {
 #[sea_orm(
     rs_type = "String",
     db_type = "Enum",
+    enum_name = "patient_permissions_access_level"
+)]
+pub enum PatientPermissionsAccessLevel {
+    #[sea_orm(string_value = "read")]
+    Read,
+    #[sea_orm(string_value = "write")]
+    Write,
+    #[sea_orm(string_value = "full")]
+    Full,
+}
+#[derive(Debug, Clone, PartialEq, Eq, EnumIter, DeriveActiveEnum, Serialize, Deserialize)]
+#[sea_orm(
+    rs_type = "String",
+    db_type = "Enum",
     enum_name = "subscription_plans_billing_cycle"
 )]
 pub enum SubscriptionPlansBillingCycle {

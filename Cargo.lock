@@ -1493,6 +1493,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "entity_tenant"
+version = "0.1.0"
+dependencies = [
+ "sea-orm 2.0.0-rc.19",
+ "serde",
+]
+
+[[package]]
 name = "env_filter"
 version = "0.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1888,6 +1896,7 @@ dependencies = [
  "chrono",
  "dotenv",
  "entity_main",
+ "entity_tenant",
  "env_logger",
  "futures",
  "futures-util",

@@ -1,0 +1,15 @@
+[package]
+name = "entity_tenant"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[lib]
+name = "entity_tenant"
+path = "src/mod.rs"
+
+[dependencies]
+serde = { version = "1.0.228", features = ["derive"] }
+
+[dependencies.sea-orm]
+version = "2.0.0-rc"

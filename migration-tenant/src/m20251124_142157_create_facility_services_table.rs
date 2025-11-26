@@ -21,7 +21,7 @@ impl MigrationTrait for Migration {
                         ForeignKey::create()
                             .name("fk-facility_services-facility_id")
                             .from(FacilityServices::Table, FacilityServices::FacilityId)
-                            .to(Facilites::Table, Facilites::Id)
+                            .to(Facilities::Table, Facilities::Id)
                             .on_delete(ForeignKeyAction::Cascade),
                     )
                     .col(integer(FacilityServices::ServiceId))
@@ -80,7 +80,7 @@ enum Services {
 }
 
 #[derive(DeriveIden)]
-enum Facilites {
+enum Facilities {
     Table,
     Id,
 }

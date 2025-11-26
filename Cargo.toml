@@ -4,12 +4,13 @@ version = "0.1.0"
 edition = "2024"
 
 [workspace]
-members = [".", "migration-main", "migration-tenant", "entity-main"]
+members = [".", "migration-main", "migration-tenant", "entity-main", "entity-tenant"]
 
 [dependencies]
 migration_main = { path = "migration-main" }
 migration_tenant = { path = "migration-tenant" }
 entity_main = { path = "entity-main" }
+entity_tenant = { path = "entity-tenant" }
 actix-cors = "0.7.1"
 actix-extensible-rate-limit = "0.4.0"
 actix-multipart = "0.7.2"

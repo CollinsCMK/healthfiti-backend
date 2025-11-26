@@ -5,33 +5,28 @@ use serde::{Deserialize, Serialize};
 
 #[sea_orm::model]
 #[derive(Clone, Debug, PartialEq, Eq, DeriveEntityModel, Serialize, Deserialize)]
-#[sea_orm(table_name = "tenants")]
+#[sea_orm(table_name = "facility_reviews")]
 pub struct Model {
     #[sea_orm(primary_key)]
     pub id: i32,
     #[sea_orm(unique)]
     pub pid: Uuid,
-    #[sea_orm(unique)]
-    pub sso_tenant_id: Uuid,
-    pub db_url: String,
-    pub plan_id: i32,
+    pub facility_id: i32,
+    pub sso_user_id: Uuid,
+    pub rating: i32,
+    #[sea_orm(column_type = "Text", nullable)]
+    pub comment: Option<String>,
     pub deleted_at: Option<DateTime>,
     pub created_at: DateTime,
     pub updated_at: DateTime,
-    #[sea_orm(has_many)]
-    pub patient_access_permissions: HasMany<super::patient_access_permissions::Entity>,
     #[sea_orm(
         belongs_to,
-        from = "plan_id",
+        from = "facility_id",
         to = "id",
         on_update = "NoAction",
         on_delete = "Cascade"
     )]
-    pub subscription_plans: HasOne<super::subscription_plans::Entity>,
-    #[sea_orm(has_many)]
-    pub tenant_features: HasMany<super::tenant_features::Entity>,
-    #[sea_orm(has_many)]
-    pub tenant_subscriptions: HasMany<super::tenant_subscriptions::Entity>,
+    pub facilities: HasOne<super::facilities::Entity>,
 }
 
 impl ActiveModelBehavior for ActiveModel {}

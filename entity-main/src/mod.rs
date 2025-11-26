@@ -3,6 +3,7 @@
 pub mod prelude;
 
 pub mod features;
+pub mod patient_access_permissions;
 pub mod patients;
 pub mod sea_orm_active_enums;
 pub mod subscription_plan_features;

@@ -10,6 +10,19 @@ pub struct Migration;
 impl MigrationTrait for Migration {
     async fn up(&self, manager: &SchemaManager) -> Result<(), DbErr> {
         manager
+            .create_type(
+                Type::create()
+                    .as_enum(Alias::new("gender"))
+                    .values([
+                        Alias::new("male"),
+                        Alias::new("female"),
+                        Alias::new("other"),
+                    ])
+                    .to_owned(),
+            )
+            .await?;
+
+        manager
             .create_table(
                 Table::create()
                     .table(Users::Table)

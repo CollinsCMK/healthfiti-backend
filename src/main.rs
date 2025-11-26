@@ -1,10 +1,4 @@
-use std::{
-    collections::HashMap,
-    error::Error,
-    fmt::Display,
-    sync::{Arc, RwLock},
-    time::Duration,
-};
+use std::{error::Error, fmt::Display, time::Duration};
 
 use actix_cors::Cors;
 use actix_extensible_rate_limit::{
@@ -15,13 +9,11 @@ use actix_web::{App, HttpServer, middleware::Logger, web};
 use aws_config::{BehaviorVersion, Region};
 use aws_credential_types::Credentials;
 use aws_sdk_s3::{Client, Config};
-use migration_main::{
-    Migrator, MigratorTrait,
-    sea_orm::{Database, DatabaseConnection},
-};
+use migration_main::sea_orm::{Database, DatabaseConnection};
 
-use crate::utils::app_state::AppState;
+use crate::utils::{app_state::AppState, migrate::migrate_tenants};
 
+mod db;
 mod handlers;
 mod routes;
 mod utils;
@@ -102,13 +94,10 @@ async fn main() -> Result<(), MainError> {
             .map_err(|err| MainError {
                 message: err.to_string(),
             })?;
-    let tenant_dbs = Arc::new(RwLock::new(HashMap::new()));
 
-    Migrator::up(&main_db, None)
-        .await
-        .map_err(|err| MainError {
-            message: err.to_string(),
-        })?;
+    let tenant_dbs = migrate_tenants(&main_db).await.map_err(|err| MainError {
+        message: err.to_string(),
+    })?;
 
     let allowed_origins = (utils::constants::ALLOWED_ORIGINS).clone();
 

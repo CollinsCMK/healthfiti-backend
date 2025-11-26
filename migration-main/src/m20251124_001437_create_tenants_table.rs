@@ -16,7 +16,7 @@ impl MigrationTrait for Migration {
                         uuid_uniq(Tenants::Pid)
                             .default(SimpleExpr::Custom("gen_random_uuid()".into())),
                     )
-                    .col(uuid_uniq(Tenants::SsoTenantId).null())
+                    .col(uuid_uniq(Tenants::SsoTenantId))
                     .col(string(Tenants::DbUrl))
                     .col(integer(Tenants::PlanId))
                     .foreign_key(
@@ -37,16 +37,8 @@ impl MigrationTrait for Migration {
                     )
                     .to_owned(),
             )
-            .await?;
-
-        let _idx_tenants_sso_id = Index::create()
-            .unique()
-            .name("idx_tenants_sso_id")
-            .table(Tenants::Table)
-            .col(Tenants::SsoTenantId)
-            .to_owned();
-
-        Ok(())
+            .await
+            
     }
 
     async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {

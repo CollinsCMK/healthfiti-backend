@@ -6,46 +6,33 @@ use serde::{Deserialize, Serialize};
 
 #[sea_orm::model]
 #[derive(Clone, Debug, PartialEq, Eq, DeriveEntityModel, Serialize, Deserialize)]
-#[sea_orm(table_name = "patients")]
+#[sea_orm(table_name = "users")]
 pub struct Model {
     #[sea_orm(primary_key)]
     pub id: i32,
     #[sea_orm(unique)]
     pub pid: Uuid,
     #[sea_orm(unique)]
-    pub sso_user_id: Option<Uuid>,
-    pub first_name: Option<String>,
-    pub last_name: Option<String>,
-    pub middle_name: Option<String>,
+    pub sso_user_id: Uuid,
     pub photo_url: Option<String>,
     pub dob: Option<Date>,
     pub gender: Option<Gender>,
     #[sea_orm(unique)]
-    pub national_id: Option<String>,
-    #[sea_orm(unique)]
-    pub passport_number: Option<String>,
-    #[sea_orm(unique)]
-    pub email: Option<String>,
-    pub country_code: Option<String>,
-    #[sea_orm(unique)]
-    pub phone_number: Option<String>,
+    pub license_number: Option<String>,
+    pub specialization: Option<String>,
     #[sea_orm(column_type = "Text", nullable)]
     pub address: Option<String>,
     pub city: Option<String>,
     pub county: Option<String>,
     pub country: Option<String>,
-    #[sea_orm(unique)]
-    pub primary_tenant_id: Option<Uuid>,
-    pub blood_type: Option<String>,
-    pub allergies: Option<Vec<String>>,
-    pub medical_conditions: Option<Vec<String>>,
+    pub postal_code: Option<String>,
     #[sea_orm(column_type = "JsonBinary", nullable)]
     pub emergency_contact: Option<Json>,
     pub deleted_at: Option<DateTime>,
     pub created_at: DateTime,
     pub updated_at: DateTime,
     #[sea_orm(has_many)]
-    pub patient_access_permissions: HasMany<super::patient_access_permissions::Entity>,
+    pub facility_staffs: HasMany<super::facility_staff::Entity>,
 }
 
 impl ActiveModelBehavior for ActiveModel {}
