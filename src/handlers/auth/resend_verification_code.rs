@@ -1,0 +1,101 @@
+use std::collections::HashMap;
+
+use actix_web::{post, web};
+use reqwest::Method;
+use serde::{Deserialize, Serialize};
+use serde_json::json;
+use uuid::Uuid;
+
+use crate::{
+    handlers::auth::phone_verification::SuccessResponse,
+    utils::{
+        api_response::ApiResponse,
+        http_client::{ApiClient, EndpointType},
+        validator_error::ValidationError,
+    },
+};
+
+#[derive(Serialize, Deserialize, Debug)]
+struct ResendOtpData {
+    #[serde(default)]
+    user_id: Uuid,
+    #[serde(default)]
+    otp_purpose: String,
+    #[serde(default)]
+    html: Option<String>,
+    #[serde(default)]
+    subject: Option<String>,
+    #[serde(default)]
+    domain: Option<String>,
+}
+
+impl ResendOtpData {
+    pub fn validate(&self) -> Result<(), ValidationError> {
+        let mut errors = HashMap::new();
+
+        if self.user_id.is_nil() {
+            errors.insert("user_id".to_string(), "User public Id is required".into());
+        }
+
+        if self.otp_purpose.trim().is_empty() {
+            errors.insert(
+                "otp_purpose".to_string(),
+                "OTP purpose type is required.".to_string(),
+            );
+        }
+
+        let valid_purposes = [
+            "login",
+            "email_verification",
+            "phone_verification",
+            "password_reset",
+        ];
+        if !valid_purposes.contains(&self.otp_purpose.as_str()) {
+            errors.insert(
+                "otp_purpose".to_string(),
+                format!("Invalid OTP purpose. Must be one of: {:?}.", valid_purposes),
+            );
+        }
+
+        if errors.is_empty() {
+            Ok(())
+        } else {
+            Err(ValidationError { errors })
+        }
+    }
+}
+
+#[post("/resend_otp")]
+pub async fn resend_otp(data: web::Json<ResendOtpData>) -> Result<ApiResponse, ApiResponse> {
+    if let Err(err) = data.validate() {
+        return Err(ApiResponse::new(500, json!(err)));
+    }
+
+    let api = ApiClient::new();
+
+    let resend_otp: SuccessResponse = api
+        .call(
+            "auth/resend_otp",
+            EndpointType::Auth,
+            Some(&*data),
+            Method::POST,
+        )
+        .await
+        .map_err(|err| {
+            log::error!("Resend verification code API error: {}", err);
+
+            ApiResponse::new(
+                500,
+                json!({
+                    "message": "Failed to resend verification code. Please try again."
+                }),
+            )
+        })?;
+
+    Ok(ApiResponse::new(
+        200,
+        json!({
+            "message": resend_otp.message
+        }),
+    ))
+}

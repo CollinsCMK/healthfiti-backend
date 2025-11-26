@@ -108,13 +108,13 @@ async fn password_reset_request(
         )
         .await
         .map_err(|err| {
-            log::error!("password_reset_request API error: {}", err);
+            log::error!("Password reset request API error: {}", err);
 
             ApiResponse::new(
                 500,
                 json!({
                     "message": "Failed to request password reset. Please try again."
-                })
+                }),
             )
         })?;
 

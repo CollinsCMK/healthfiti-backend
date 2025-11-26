@@ -1,10 +1,10 @@
 use migration_main::MigratorTrait;
 use serde_json::json;
-use uuid::Uuid;
 use std::{
     collections::HashMap,
     sync::{Arc, RwLock},
 };
+use uuid::Uuid;
 
 use crate::{
     db::{

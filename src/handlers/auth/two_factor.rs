@@ -13,13 +13,13 @@ use crate::utils::{
 };
 
 #[derive(Serialize, Deserialize, Default, Debug, Clone)]
-struct OtpCode {
+pub struct OtpCode {
     #[serde(default)]
-    otp_code: String,
+    pub otp_code: String,
     #[serde(default)]
-    user_id: Uuid,
+    pub user_id: Uuid,
     #[serde(default)]
-    method: String,
+    pub method: String,
 }
 
 impl OtpCode {
@@ -115,7 +115,7 @@ pub async fn login_verify(data: web::Json<LoginVerifyData>) -> Result<ApiRespons
         )
         .await
         .map_err(|err| {
-            log::error!("login_verify external API error: {}", err);
+            log::error!("Login verify external API error: {}", err);
 
             ApiResponse::new(
                 500,

@@ -6,9 +6,16 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use uuid::Uuid;
 
-use crate::{db::tenant::{self, ActiveModelTrait, ActiveValue::Set, ColumnTrait, QueryFilter}, utils::{
-    api_response::ApiResponse, app_state::AppState, http_client::{ApiClient, EndpointType}, validation::validate_phone_number, validator_error::ValidationError
-}};
+use crate::{
+    db::tenant::{self, ActiveModelTrait, ActiveValue::Set, ColumnTrait, QueryFilter},
+    utils::{
+        api_response::ApiResponse,
+        app_state::AppState,
+        http_client::{ApiClient, EndpointType},
+        validation::validate_phone_number,
+        validator_error::ValidationError,
+    },
+};
 
 #[derive(Serialize, Deserialize, Debug)]
 struct LoginData {
@@ -122,7 +129,7 @@ async fn login(data: &web::Json<LoginData>, user_type: &str) -> Result<ApiRespon
                 500,
                 json!({
                     "message": "Login failed. Please try again."
-                })
+                }),
             )
         })?;
 
@@ -249,7 +256,10 @@ async fn tenant_login(
         Some(db) => db,
         None => {
             log::error!("Tenant DB not found for tenat_id: {}", sso_tenant_id);
-            return Err(ApiResponse::new(404, json!({ "message": "Tenant database not found" })));
+            return Err(ApiResponse::new(
+                404,
+                json!({ "message": "Tenant database not found" }),
+            ));
         }
     };
 
@@ -271,15 +281,12 @@ async fn tenant_login(
                 sso_user_id: Set(sso_user_id.clone()),
                 ..Default::default()
             }
-                .insert(&tenant_db)
-                .await
-                .map_err(|err| {
-                    log::error!("Failed to create tenant user: {}", err);
-                    ApiResponse::new(
-                        500,
-                        json!({ "message": "Failed to create tenant user" }),
-                    )
-                })?
+            .insert(&tenant_db)
+            .await
+            .map_err(|err| {
+                log::error!("Failed to create tenant user: {}", err);
+                ApiResponse::new(500, json!({ "message": "Failed to create tenant user" }))
+            })?
         }
     };
 

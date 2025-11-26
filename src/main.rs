@@ -15,6 +15,7 @@ use crate::utils::{app_state::AppState, migrate::migrate_tenants};
 
 mod db;
 mod handlers;
+mod middlewares;
 mod routes;
 mod utils;
 

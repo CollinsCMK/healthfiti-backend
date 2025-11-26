@@ -1,3 +1,10 @@
+pub mod email_verification;
 pub mod login;
+pub mod logout;
+pub mod password_reset;
 pub mod password_reset_request;
+pub mod phone_verification;
+pub mod refresh;
+pub mod register;
+pub mod resend_verification_code;
 pub mod two_factor;
