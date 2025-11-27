@@ -116,7 +116,11 @@ pub async fn login_verify(data: web::Json<LoginVerifyData>) -> Result<ApiRespons
         .await
         .map_err(|err| {
             log::error!("Login verify external API error: {}", err);
+            use std::error::Error;
 
+if let Some(source) = err.source() {
+        log::error!("Cause: {:?}", source);
+    }
             ApiResponse::new(
                 500,
                 json!({

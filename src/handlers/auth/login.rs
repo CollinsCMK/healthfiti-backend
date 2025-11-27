@@ -139,7 +139,7 @@ async fn login(data: &web::Json<LoginData>, user_type: &str) -> Result<ApiRespon
             json!({
                 "is_verify_email": true,
                 "user_id": login.user_id.expect("User ID"),
-                "tenant_pid": login.tenant_pid.expect("Tenant ID"),
+                "tenant_pid": login.tenant_pid,
                 "message": login.message
             }),
         ));
@@ -151,7 +151,7 @@ async fn login(data: &web::Json<LoginData>, user_type: &str) -> Result<ApiRespon
             json!({
                 "is_verify_phone": true,
                 "user_id": login.user_id.expect("User ID"),
-                "tenant_pid": login.tenant_pid.expect("Tenant ID"),
+                "tenant_pid": login.tenant_pid,
                 "message": login.message
             }),
         ));
@@ -163,7 +163,7 @@ async fn login(data: &web::Json<LoginData>, user_type: &str) -> Result<ApiRespon
             json!({
                 "is_totp_verified": true,
                 "user_id": login.user_id.expect("User ID"),
-                "tenant_pid": login.tenant_pid.expect("Tenant ID"),
+                "tenant_pid": login.tenant_pid,
                 "message": login.message
             }),
         ));
@@ -175,7 +175,7 @@ async fn login(data: &web::Json<LoginData>, user_type: &str) -> Result<ApiRespon
             json!({
                 "is_login_verify": true,
                 "user_id": login.user_id.expect("User ID"),
-                "tenant_pid": login.tenant_pid.expect("Tenant ID"),
+                "tenant_pid": login.tenant_pid,
                 "message": login.message
             }),
         ));

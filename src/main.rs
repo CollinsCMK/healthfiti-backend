@@ -52,6 +52,7 @@ async fn main() -> Result<(), MainError> {
 
     dotenv::dotenv().ok();
     env_logger::init();
+    println!("APP_DESCRIPTION = {:?}", std::env::var("APP_DESCRIPTION"));
 
     let minio_endpoint = (utils::constants::MINIO_ENDPOINT).clone();
     let minio_access_key = (utils::constants::MINIO_ACCESS_KEY).clone();

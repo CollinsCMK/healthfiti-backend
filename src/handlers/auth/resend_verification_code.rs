@@ -22,10 +22,6 @@ struct ResendOtpData {
     #[serde(default)]
     otp_purpose: String,
     #[serde(default)]
-    html: Option<String>,
-    #[serde(default)]
-    subject: Option<String>,
-    #[serde(default)]
     domain: Option<String>,
 }
 
