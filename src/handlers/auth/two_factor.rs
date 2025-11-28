@@ -1,15 +1,13 @@
 use std::collections::HashMap;
 
-use actix_web::{post, web};
+use actix_web::{HttpRequest, post, web};
 use reqwest::Method;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use uuid::Uuid;
 
 use crate::utils::{
-    api_response::ApiResponse,
-    http_client::{ApiClient, EndpointType},
-    validator_error::ValidationError,
+    api_response::ApiResponse, http_client::ApiClient, validator_error::ValidationError,
 };
 
 #[derive(Serialize, Deserialize, Default, Debug, Clone)]
@@ -99,7 +97,10 @@ pub struct LoginVerifyResponse {
 }
 
 #[post("/login_verify")]
-pub async fn login_verify(data: web::Json<LoginVerifyData>) -> Result<ApiResponse, ApiResponse> {
+pub async fn login_verify(
+    data: web::Json<LoginVerifyData>,
+    req: HttpRequest,
+) -> Result<ApiResponse, ApiResponse> {
     if let Err(err) = data.validate() {
         return Err(ApiResponse::new(500, json!(err)));
     }
@@ -107,20 +108,15 @@ pub async fn login_verify(data: web::Json<LoginVerifyData>) -> Result<ApiRespons
     let api = ApiClient::new();
 
     let verify_response: LoginVerifyResponse = api
-        .call(
-            "auth/login_verify",
-            EndpointType::Auth,
-            Some(&*data),
-            Method::POST,
-        )
+        .call("auth/login_verify", &req, Some(&*data), Method::POST)
         .await
         .map_err(|err| {
             log::error!("Login verify external API error: {}", err);
             use std::error::Error;
 
-if let Some(source) = err.source() {
-        log::error!("Cause: {:?}", source);
-    }
+            if let Some(source) = err.source() {
+                log::error!("Cause: {:?}", source);
+            }
             ApiResponse::new(
                 500,
                 json!({

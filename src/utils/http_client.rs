@@ -1,11 +1,16 @@
+use actix_web::HttpRequest;
 use reqwest::Client;
 use serde::{Serialize, de::DeserializeOwned};
 
 use crate::utils;
 
-pub enum EndpointType<'a> {
-    Auth,                   // Client-ID + Client-Secret
-    Authenticated(&'a str), // Client-ID + Client-Secret + Bearer token
+pub fn get_bearer_token(req: &HttpRequest) -> Option<String> {
+    req.headers()
+        .get("Authorization")?
+        .to_str()
+        .ok()?
+        .strip_prefix("Bearer ")
+        .map(|s| s.to_string())
 }
 
 pub struct ApiClient {
@@ -32,7 +37,7 @@ impl ApiClient {
     pub async fn call<T: DeserializeOwned, P: Serialize>(
         &self,
         path: &str,
-        endpoint_type: EndpointType<'_>,
+        req: &HttpRequest,
         payload: Option<&P>,
         method: reqwest::Method,
     ) -> Result<T, reqwest::Error> {
@@ -44,7 +49,7 @@ impl ApiClient {
             .header("Client-ID", &self.client_id)
             .header("Client-Secret", &self.client_secret);
 
-        if let EndpointType::Authenticated(token) = endpoint_type {
+        if let Some(token) = get_bearer_token(&req) {
             request = request.bearer_auth(token);
         }
 

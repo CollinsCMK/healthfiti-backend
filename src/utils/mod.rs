@@ -7,3 +7,4 @@ pub mod migrate;
 pub mod multipart;
 pub mod validation;
 pub mod validator_error;
+pub mod message_queue;

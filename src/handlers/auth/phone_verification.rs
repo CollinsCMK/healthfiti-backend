@@ -1,15 +1,13 @@
 use std::collections::HashMap;
 
-use actix_web::{post, web};
+use actix_web::{HttpRequest, post, web};
 use reqwest::Method;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use uuid::Uuid;
 
 use crate::utils::{
-    api_response::ApiResponse,
-    http_client::{ApiClient, EndpointType},
-    validator_error::ValidationError,
+    api_response::ApiResponse, http_client::ApiClient, validator_error::ValidationError,
 };
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -56,7 +54,10 @@ pub struct SuccessResponse {
 }
 
 #[post("/verify_phone")]
-pub async fn verify_phone(data: web::Json<VerifyPhoneData>) -> Result<ApiResponse, ApiResponse> {
+pub async fn verify_phone(
+    data: web::Json<VerifyPhoneData>,
+    req: HttpRequest,
+) -> Result<ApiResponse, ApiResponse> {
     if let Err(err) = data.validate() {
         return Err(ApiResponse::new(500, json!(err)));
     }
@@ -64,12 +65,7 @@ pub async fn verify_phone(data: web::Json<VerifyPhoneData>) -> Result<ApiRespons
     let api = ApiClient::new();
 
     let verify_phone: SuccessResponse = api
-        .call(
-            "auth/verify_phone",
-            EndpointType::Auth,
-            Some(&*data),
-            Method::POST,
-        )
+        .call("auth/verify_phone", &req, Some(&*data), Method::POST)
         .await
         .map_err(|err| {
             log::error!("Verify phone number API error: {}", err);

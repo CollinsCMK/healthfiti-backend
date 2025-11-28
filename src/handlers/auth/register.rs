@@ -1,13 +1,13 @@
 use std::collections::HashMap;
 
-use actix_web::{post, web};
+use actix_web::{HttpRequest, post, web};
 use reqwest::Method;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
 use crate::utils::{
     api_response::ApiResponse,
-    http_client::{ApiClient, EndpointType},
+    http_client::ApiClient,
     validation::{validate_password, validate_phone_number},
     validator_error::ValidationError,
 };
@@ -111,7 +111,10 @@ struct RegisterResponse {
 }
 
 #[post("/register")]
-pub async fn register(data: web::Json<RegisterData>) -> Result<ApiResponse, ApiResponse> {
+pub async fn register(
+    data: web::Json<RegisterData>,
+    req: HttpRequest,
+) -> Result<ApiResponse, ApiResponse> {
     if let Err(err) = data.validate() {
         return Err(ApiResponse::new(500, json!(err)));
     }
@@ -119,12 +122,7 @@ pub async fn register(data: web::Json<RegisterData>) -> Result<ApiResponse, ApiR
     let api = ApiClient::new();
 
     let register: RegisterResponse = api
-        .call(
-            "auth/register",
-            EndpointType::Auth,
-            Some(&*data),
-            Method::POST,
-        )
+        .call("auth/register", &req, Some(&*data), Method::POST)
         .await
         .map_err(|err| {
             log::error!("Register user API error: {}", err);

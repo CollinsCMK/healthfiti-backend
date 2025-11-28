@@ -11,13 +11,14 @@ use aws_credential_types::Credentials;
 use aws_sdk_s3::{Client, Config};
 use migration_main::sea_orm::{Database, DatabaseConnection};
 
-use crate::utils::{app_state::AppState, migrate::migrate_tenants};
+use crate::utils::{app_state::AppState, message_queue::init_message_queue, migrate::migrate_tenants};
 
 mod db;
 mod handlers;
 mod middlewares;
 mod routes;
 mod utils;
+mod emails;
 
 #[derive(Debug)]
 struct MainError {
@@ -52,7 +53,6 @@ async fn main() -> Result<(), MainError> {
 
     dotenv::dotenv().ok();
     env_logger::init();
-    println!("APP_DESCRIPTION = {:?}", std::env::var("APP_DESCRIPTION"));
 
     let minio_endpoint = (utils::constants::MINIO_ENDPOINT).clone();
     let minio_access_key = (utils::constants::MINIO_ACCESS_KEY).clone();
@@ -89,7 +89,8 @@ async fn main() -> Result<(), MainError> {
     let address = (utils::constants::ADDRESS).clone();
     let database_url = (utils::constants::DATABASE_URL).clone();
     let max_file_size = (utils::constants::MAX_FILE_SIZE).clone() as usize;
-
+    let redis_url = (utils::constants::REDIS_URL).clone();
+    
     let main_db: DatabaseConnection =
         Database::connect(database_url)
             .await
@@ -103,6 +104,12 @@ async fn main() -> Result<(), MainError> {
 
     let allowed_origins = (utils::constants::ALLOWED_ORIGINS).clone();
 
+    let redis_client = redis::Client::open(redis_url.clone()).map_err(|err| MainError {
+        message: format!("Redis client error: {}", err),
+    })?;
+
+    let message_queue = init_message_queue(&redis_url);
+    
     let backend = InMemoryBackend::builder().build();
 
     HttpServer::new(move || {
@@ -129,6 +136,8 @@ async fn main() -> Result<(), MainError> {
                 tenant_dbs: tenant_dbs.clone(),
                 s3_client: client.clone(),
                 bucket: minio_bucket.clone(),
+                message_queue: message_queue.clone(),
+                redis: redis_client.clone(),
             })
             .app_data(web::PayloadConfig::new(max_file_size))
             .wrap(cors)

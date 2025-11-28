@@ -1,2 +1,6 @@
+pub mod admin;
 pub mod auth;
-pub mod upload_sample;
+pub mod health;
+pub mod shared;
+pub mod tenant;
+pub mod user;

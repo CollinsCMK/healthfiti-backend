@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use actix_web::{post, web};
+use actix_web::{HttpRequest, post, web};
 use reqwest::Method;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -9,9 +9,7 @@ use uuid::Uuid;
 use crate::{
     handlers::auth::{phone_verification::SuccessResponse, two_factor::OtpCode},
     utils::{
-        api_response::ApiResponse,
-        http_client::{ApiClient, EndpointType},
-        validation::validate_password,
+        api_response::ApiResponse, http_client::ApiClient, validation::validate_password,
         validator_error::ValidationError,
     },
 };
@@ -95,6 +93,7 @@ impl From<UpdatePasswordData> for OtpCode {
 #[post("/reset_password")]
 pub async fn reset_password(
     data: web::Json<UpdatePasswordData>,
+    req: HttpRequest,
 ) -> Result<ApiResponse, ApiResponse> {
     if let Err(err) = data.validate() {
         return Err(ApiResponse::new(500, json!(err)));
@@ -103,12 +102,7 @@ pub async fn reset_password(
     let api = ApiClient::new();
 
     let reset: SuccessResponse = api
-        .call(
-            "auth/reset_password",
-            EndpointType::Auth,
-            Some(&*data),
-            Method::POST,
-        )
+        .call("auth/reset_password", &req, Some(&*data), Method::POST)
         .await
         .map_err(|err| {
             log::error!("Reset password external API error: {}", err);

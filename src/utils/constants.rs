@@ -1,7 +1,6 @@
 use std::env;
 
 use lazy_static::lazy_static;
-use uuid::Uuid;
 
 lazy_static! {
     pub static ref APP_NAME: String = set_app_name();
@@ -11,6 +10,14 @@ lazy_static! {
     pub static ref APP_URL: String = set_app_url();
     pub static ref DATABASE_URL: String = set_database_url();
     pub static ref MAX_FILE_SIZE: u64 = set_max_file_size();
+    // pub static ref MAIL_PORT: u16 = mail_port();
+    pub static ref MAIL_HOST: String = mail_host();
+    pub static ref MAIL_USERNAME: String = mail_username();
+    pub static ref MAIL_PASSWORD: String = mail_password();
+    pub static ref MAIL_FROM_ADDRESS: String = mail_from_address();
+    pub static ref VASPRO_API_KEY: String = vaspro_api_key();
+    pub static ref VASPROT_SHORTCODE: String = vaspro_shortcode();
+    pub static ref REDIS_URL: String = redis_url();
     pub static ref SECRET: String = set_secret();
     pub static ref MINIO_ENDPOINT: String = set_minio_endpoint();
     pub static ref MINIO_ACCESS_KEY: String = set_minio_access_key();
@@ -63,6 +70,54 @@ fn set_max_file_size() -> u64 {
         .unwrap_or("10485760".to_owned())
         .parse::<u64>()
         .expect("Can't parse that file size")
+}
+
+// fn mail_port() -> u16 {
+//     dotenv::dotenv().ok();
+//     env::var("MAIL_PORT")
+//         .expect("Environment variable 'MAIL_PORT' is required but not set.")
+//         .parse::<u16>()
+//         .expect("Failed to parse 'MAIL_PORT' as a valid u16 value.")
+// }
+
+fn mail_host() -> String {
+    dotenv::dotenv().ok();
+    env::var("MAIL_HOST").expect("Environment variable 'MAIL_HOST' is required but not set.")
+}
+
+fn mail_username() -> String {
+    dotenv::dotenv().ok();
+    env::var("MAIL_USERNAME")
+        .expect("Environment variable 'MAIL_USERNAME' is required but not set.")
+}
+
+fn mail_password() -> String {
+    dotenv::dotenv().ok();
+    env::var("MAIL_PASSWORD")
+        .expect("Environment variable 'MAIL_PASSWORD' is required but not set.")
+}
+
+fn mail_from_address() -> String {
+    dotenv::dotenv().ok();
+    env::var("MAIL_FROM_ADDRESS")
+        .expect("Environment variable 'MAIL_FROM_ADDRESS' is required but not set.")
+}
+
+fn vaspro_api_key() -> String {
+    dotenv::dotenv().ok();
+    env::var("VASPRO_API_KEY")
+        .expect("Environment variable 'VASPRO_API_KEY' is required but not set.")
+}
+
+fn vaspro_shortcode() -> String {
+    dotenv::dotenv().ok();
+    env::var("VASPRO_SHORTCODE")
+        .expect("Environment variable 'VASPRO_SHORTCODE' is required but not set.")
+}
+
+fn redis_url() -> String {
+    dotenv::dotenv().ok();
+    env::var("REDIS_URL").expect("Environment variable 'REDIS_URL' is required but not set.")
 }
 
 fn set_secret() -> String {

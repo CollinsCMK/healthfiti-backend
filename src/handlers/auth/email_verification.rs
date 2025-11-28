@@ -1,15 +1,13 @@
 use std::collections::HashMap;
 
-use actix_web::{post, web};
+use actix_web::{HttpRequest, post, web};
 use reqwest::Method;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use uuid::Uuid;
 
 use crate::utils::{
-    api_response::ApiResponse,
-    http_client::{ApiClient, EndpointType},
-    validator_error::ValidationError,
+    api_response::ApiResponse, http_client::ApiClient, validator_error::ValidationError,
 };
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -58,7 +56,10 @@ struct EmailResponse {
 }
 
 #[post("/verify_email")]
-pub async fn verify_email(data: web::Json<VerifyEmailData>) -> Result<ApiResponse, ApiResponse> {
+pub async fn verify_email(
+    data: web::Json<VerifyEmailData>,
+    req: HttpRequest,
+) -> Result<ApiResponse, ApiResponse> {
     if let Err(err) = data.validate() {
         return Err(ApiResponse::new(500, json!(err)));
     }
@@ -66,12 +67,7 @@ pub async fn verify_email(data: web::Json<VerifyEmailData>) -> Result<ApiRespons
     let api = ApiClient::new();
 
     let verify_email: EmailResponse = api
-        .call(
-            "auth/verify_email",
-            EndpointType::Auth,
-            Some(&*data),
-            Method::POST,
-        )
+        .call("auth/verify_email", &req, Some(&*data), Method::POST)
         .await
         .map_err(|err| {
             log::error!("Verify email API error: {}", err);

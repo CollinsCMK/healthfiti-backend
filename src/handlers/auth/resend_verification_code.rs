@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use actix_web::{post, web};
+use actix_web::{HttpRequest, post, web};
 use reqwest::Method;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -8,11 +8,7 @@ use uuid::Uuid;
 
 use crate::{
     handlers::auth::phone_verification::SuccessResponse,
-    utils::{
-        api_response::ApiResponse,
-        http_client::{ApiClient, EndpointType},
-        validator_error::ValidationError,
-    },
+    utils::{api_response::ApiResponse, http_client::ApiClient, validator_error::ValidationError},
 };
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -62,7 +58,10 @@ impl ResendOtpData {
 }
 
 #[post("/resend_otp")]
-pub async fn resend_otp(data: web::Json<ResendOtpData>) -> Result<ApiResponse, ApiResponse> {
+pub async fn resend_otp(
+    data: web::Json<ResendOtpData>,
+    req: HttpRequest,
+) -> Result<ApiResponse, ApiResponse> {
     if let Err(err) = data.validate() {
         return Err(ApiResponse::new(500, json!(err)));
     }
@@ -70,12 +69,7 @@ pub async fn resend_otp(data: web::Json<ResendOtpData>) -> Result<ApiResponse, A
     let api = ApiClient::new();
 
     let resend_otp: SuccessResponse = api
-        .call(
-            "auth/resend_otp",
-            EndpointType::Auth,
-            Some(&*data),
-            Method::POST,
-        )
+        .call("auth/resend_otp", &req, Some(&*data), Method::POST)
         .await
         .map_err(|err| {
             log::error!("Resend verification code API error: {}", err);

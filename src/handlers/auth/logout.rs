@@ -1,14 +1,11 @@
-use actix_web::{post, web};
+use actix_web::{HttpRequest, post, web};
 use reqwest::Method;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
 use crate::{
     handlers::auth::{phone_verification::SuccessResponse, refresh::RefreshRequest},
-    utils::{
-        api_response::ApiResponse,
-        http_client::{ApiClient, EndpointType},
-    },
+    utils::{api_response::ApiResponse, http_client::ApiClient},
 };
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -20,6 +17,7 @@ pub struct LogoutQuery {
 pub async fn logout(
     data: web::Json<RefreshRequest>,
     query: web::Query<LogoutQuery>,
+    req: HttpRequest,
 ) -> Result<ApiResponse, ApiResponse> {
     if let Err(err) = data.validate() {
         return Err(ApiResponse::new(400, json!(err)));
@@ -31,7 +29,7 @@ pub async fn logout(
     let api = ApiClient::new();
 
     let logout: SuccessResponse = api
-        .call(&endpoint, EndpointType::Auth, Some(&*data), Method::POST)
+        .call(&endpoint, &req, Some(&*data), Method::POST)
         .await
         .map_err(|err| {
             log::error!("Logout API error: {}", err);

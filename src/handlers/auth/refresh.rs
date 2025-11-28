@@ -1,14 +1,12 @@
 use std::collections::HashMap;
 
-use actix_web::{post, web};
+use actix_web::{HttpRequest, post, web};
 use reqwest::Method;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
 use crate::utils::{
-    api_response::ApiResponse,
-    http_client::{ApiClient, EndpointType},
-    validator_error::ValidationError,
+    api_response::ApiResponse, http_client::ApiClient, validator_error::ValidationError,
 };
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -52,7 +50,10 @@ struct RefreshResponse {
 }
 
 #[post("/refresh")]
-pub async fn refresh(data: web::Json<RefreshRequest>) -> Result<ApiResponse, ApiResponse> {
+pub async fn refresh(
+    data: web::Json<RefreshRequest>,
+    req: HttpRequest,
+) -> Result<ApiResponse, ApiResponse> {
     if let Err(err) = data.validate() {
         return Err(ApiResponse::new(400, json!(err)));
     }
@@ -60,12 +61,7 @@ pub async fn refresh(data: web::Json<RefreshRequest>) -> Result<ApiResponse, Api
     let api = ApiClient::new();
 
     let refresh: RefreshResponse = api
-        .call(
-            "auth/refresh",
-            EndpointType::Auth,
-            Some(&*data),
-            Method::POST,
-        )
+        .call("auth/refresh", &req, Some(&*data), Method::POST)
         .await
         .map_err(|err| {
             log::error!("Refresh API error: {}", err);

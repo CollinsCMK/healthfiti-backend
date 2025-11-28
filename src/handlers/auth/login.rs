@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use actix_web::{post, web};
+use actix_web::{HttpRequest, post, web};
 use reqwest::Method;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
@@ -9,11 +9,8 @@ use uuid::Uuid;
 use crate::{
     db::tenant::{self, ActiveModelTrait, ActiveValue::Set, ColumnTrait, QueryFilter},
     utils::{
-        api_response::ApiResponse,
-        app_state::AppState,
-        http_client::{ApiClient, EndpointType},
-        validation::validate_phone_number,
-        validator_error::ValidationError,
+        api_response::ApiResponse, app_state::AppState, http_client::ApiClient,
+        validation::validate_phone_number, validator_error::ValidationError,
     },
 };
 
@@ -98,7 +95,11 @@ struct LoginResponse {
     message: String,
 }
 
-async fn login(data: &web::Json<LoginData>, user_type: &str) -> Result<ApiResponse, ApiResponse> {
+async fn login(
+    data: &web::Json<LoginData>,
+    user_type: &str,
+    req: &HttpRequest,
+) -> Result<ApiResponse, ApiResponse> {
     if let Err(err) = data.validate() {
         return Err(ApiResponse::new(400, json!(err)));
     }
@@ -115,12 +116,7 @@ async fn login(data: &web::Json<LoginData>, user_type: &str) -> Result<ApiRespon
     });
 
     let login: LoginResponse = api
-        .call(
-            "auth/login",
-            EndpointType::Auth,
-            Some(&request_json),
-            Method::POST,
-        )
+        .call("auth/login", &req, Some(&request_json), Method::POST)
         .await
         .map_err(|err| {
             log::error!("auth/login API error: {}", err);
@@ -190,8 +186,11 @@ async fn login(data: &web::Json<LoginData>, user_type: &str) -> Result<ApiRespon
 }
 
 #[post("/admin/login")]
-async fn admin_login(data: web::Json<LoginData>) -> Result<ApiResponse, ApiResponse> {
-    match login(&data, "admin").await {
+async fn admin_login(
+    data: web::Json<LoginData>,
+    req: HttpRequest,
+) -> Result<ApiResponse, ApiResponse> {
+    match login(&data, "admin", &req).await {
         Ok(response) => Ok(response),
         Err(err) => {
             log::error!("Admin login failed: {:?}", err);
@@ -208,8 +207,9 @@ async fn admin_login(data: web::Json<LoginData>) -> Result<ApiResponse, ApiRespo
 async fn tenant_login(
     data: web::Json<LoginData>,
     app_state: web::Data<AppState>,
+    req: HttpRequest,
 ) -> Result<ApiResponse, ApiResponse> {
-    let login_response = match login(&data, "tenant").await {
+    let login_response = match login(&data, "tenant", &req).await {
         Ok(resp) => resp,
         Err(err) => {
             log::error!("Tenant login failed before tenant DB lookup: {:?}", err);
@@ -294,8 +294,11 @@ async fn tenant_login(
 }
 
 #[post("/normal/login")]
-async fn normal_login(data: web::Json<LoginData>) -> Result<ApiResponse, ApiResponse> {
-    match login(&data, "normal").await {
+async fn normal_login(
+    data: web::Json<LoginData>,
+    req: HttpRequest,
+) -> Result<ApiResponse, ApiResponse> {
+    match login(&data, "normal", &req).await {
         Ok(response) => Ok(response),
         Err(err) => {
             log::error!("Normal login failed: {:?}", err);

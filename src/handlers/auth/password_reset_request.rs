@@ -1,14 +1,12 @@
 use std::collections::HashMap;
 
-use actix_web::{post, web};
+use actix_web::{HttpRequest, post, web};
 use reqwest::Method;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
 use crate::utils::{
-    api_response::ApiResponse,
-    http_client::{ApiClient, EndpointType},
-    validation::validate_phone_number,
+    api_response::ApiResponse, http_client::ApiClient, validation::validate_phone_number,
     validator_error::ValidationError,
 };
 
@@ -84,6 +82,7 @@ struct PasswordResetResponse {
 async fn password_reset_request(
     data: &web::Json<PasswordRequestData>,
     user_type: &str,
+    req: &HttpRequest,
 ) -> Result<ApiResponse, ApiResponse> {
     if let Err(err) = data.validate() {
         return Err(ApiResponse::new(400, json!(err)));
@@ -102,7 +101,7 @@ async fn password_reset_request(
     let password_reset: PasswordResetResponse = api
         .call(
             "auth/password_reset_request",
-            EndpointType::Auth,
+            &req,
             Some(&request_json),
             Method::POST,
         )
@@ -151,8 +150,9 @@ async fn password_reset_request(
 #[post("/admin/password_reset_request")]
 async fn admin_password_reset_request(
     data: web::Json<PasswordRequestData>,
+    req: HttpRequest,
 ) -> Result<ApiResponse, ApiResponse> {
-    match password_reset_request(&data, "admin").await {
+    match password_reset_request(&data, "admin", &req).await {
         Ok(response) => Ok(response),
         Err(err) => {
             log::error!("Admin password reset request failed: {:?}", err);
@@ -168,8 +168,9 @@ async fn admin_password_reset_request(
 #[post("/tenant/password_reset_request")]
 async fn tenant_password_reset_request(
     data: web::Json<PasswordRequestData>,
+    req: HttpRequest,
 ) -> Result<ApiResponse, ApiResponse> {
-    match password_reset_request(&data, "tenant").await {
+    match password_reset_request(&data, "tenant", &req).await {
         Ok(response) => Ok(response),
         Err(err) => {
             log::error!("Admin password reset request failed: {:?}", err);
@@ -185,8 +186,9 @@ async fn tenant_password_reset_request(
 #[post("/normal/password_reset_request")]
 async fn normal_password_reset_request(
     data: web::Json<PasswordRequestData>,
+    req: HttpRequest,
 ) -> Result<ApiResponse, ApiResponse> {
-    match password_reset_request(&data, "normal").await {
+    match password_reset_request(&data, "normal", &req).await {
         Ok(response) => Ok(response),
         Err(err) => {
             log::error!("Admin password reset request failed: {:?}", err);

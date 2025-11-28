@@ -46,6 +46,10 @@ pub struct Model {
     pub updated_at: DateTime,
     #[sea_orm(has_many)]
     pub patient_access_permissions: HasMany<super::patient_access_permissions::Entity>,
+    #[sea_orm(has_one)]
+    pub patient_billing: HasOne<super::patient_billing::Entity>,
+    #[sea_orm(has_many)]
+    pub patient_insurances: HasMany<super::patient_insurance::Entity>,
 }
 
 impl ActiveModelBehavior for ActiveModel {}

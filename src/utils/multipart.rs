@@ -1,26 +1,39 @@
 use std::str::FromStr;
 
 use actix_multipart::Field;
-use actix_web::web;
+use actix_web::{HttpRequest, web};
 use aws_sdk_s3::{presigning::PresigningConfig, primitives::ByteStream};
 use chrono::{NaiveDate, NaiveDateTime};
 use futures::TryStreamExt;
 use sea_orm::prelude::Decimal;
 use serde_json::json;
 
-use crate::utils::{api_response::ApiResponse, app_state::AppState};
+use crate::utils::{
+    api_response::ApiResponse, app_state::AppState, jwt::get_logged_in_user_claims,
+};
 
 pub async fn upload_file(
+    req: &HttpRequest,
     app_state: &web::Data<AppState>,
     file_name: &str,
     content: Vec<u8>,
     content_type: &str,
 ) -> Result<(), ApiResponse> {
+    let claims = get_logged_in_user_claims(&req)?;
+
+    let filename = if claims.tenant_pid.is_some() {
+        format!("{}/{}/", claims.tenant_pid.expect("Tenant ID"), file_name)
+    } else if claims.role_name.trim().to_lowercase() == "user" {
+        format!("patient/{}/", file_name)
+    } else {
+        format!("admin/{}/", file_name)
+    };
+
     app_state
         .s3_client
         .put_object()
         .bucket(&app_state.bucket)
-        .key(file_name)
+        .key(filename)
         .body(ByteStream::from(content))
         .content_type(content_type)
         .send()

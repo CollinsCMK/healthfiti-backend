@@ -2,6 +2,8 @@
 
 pub use super::features::Entity as Features;
 pub use super::patient_access_permissions::Entity as PatientAccessPermissions;
+pub use super::patient_billing::Entity as PatientBilling;
+pub use super::patient_insurance::Entity as PatientInsurance;
 pub use super::patients::Entity as Patients;
 pub use super::subscription_plan_features::Entity as SubscriptionPlanFeatures;
 pub use super::subscription_plans::Entity as SubscriptionPlans;
