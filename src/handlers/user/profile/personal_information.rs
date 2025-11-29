@@ -21,7 +21,7 @@ use crate::{
         http_client::ApiClient,
         jwt::get_logged_in_user_claims,
         multipart::{
-            field_to_byte, field_to_date, field_to_string, get_presigned_url, upload_file,
+            field_to_byte, field_to_date, field_to_string, upload_file,
         },
         validator_error::ValidationError,
     },
@@ -53,14 +53,6 @@ async fn get_personal_information(
                     "message": "Internal server error. Please try again later."
                 }),
             )
-        })?
-        .ok_or_else(|| {
-            ApiResponse::new(
-                404,
-                json!({
-                    "message": "Personal information not found"
-                }),
-            )
         })?;
 
     if let Some(user) = &profile.user {
@@ -68,9 +60,9 @@ async fn get_personal_information(
             200,
             json!({
                 "personal_information": {
-                    "profile_picture": personal_info.photo_url,
+                    "profile_picture": personal_info.as_ref().map(|p| &p.photo_url),
                     "first_name": &user.first_name,
-                    "middle_name": personal_info.middle_name,
+                    "middle_name": personal_info.as_ref().map(|p| &p.middle_name),
                     "last_name": &user.last_name,
                     "username": &user.username,
                     "email": &user.email,
@@ -85,14 +77,14 @@ async fn get_personal_information(
                     "is_secret_verified": user.is_secret_verified,
                     "method": &user.method,
                     "roles": &user.roles,
-                    "dob": personal_info.dob,
-                    "gender": personal_info.gender,
-                    "national_id": &personal_info.national_id,
-                    "passport_number": &personal_info.passport_number,
-                    "address": &personal_info.address,
-                    "city": &personal_info.city,
-                    "county": &personal_info.county,
-                    "country": &personal_info.country,
+                    "dob": personal_info.as_ref().map(|p| &p.dob),
+                    "gender": personal_info.as_ref().map(|p| &p.gender),
+                    "national_id": personal_info.as_ref().map(|p| &p.national_id),
+                    "passport_number": personal_info.as_ref().map(|p| &p.passport_number),
+                    "address": personal_info.as_ref().map(|p| &p.address),
+                    "city": personal_info.as_ref().map(|p| &p.city),
+                    "county": personal_info.as_ref().map(|p| &p.county),
+                    "country": personal_info.as_ref().map(|p| &p.country),
                     "created_at": &user.created_at,
                 },
                 "message": "User personal information fetched successfully"
@@ -104,38 +96,23 @@ async fn get_personal_information(
 }
 
 #[derive(Debug, Default, Serialize, Deserialize)]
+#[serde(default)]
 pub struct PersonalInfo {
-    #[serde(default)]
     pub first_name: String,
-    #[serde(default)]
     pub last_name: String,
-    #[serde(default)]
     pub middle_name: Option<String>,
-    #[serde(default)]
     pub username: String,
-    #[serde(default)]
-    pub photo_url: Option<String>,
-    #[serde(default)]
+    pub profile_picture: Option<String>,
     pub dob: NaiveDate,
-    #[serde(default)]
     pub gender: Option<String>,
-    #[serde(default)]
     pub national_id: Option<String>,
-    #[serde(default)]
     pub passport_number: Option<String>,
-    #[serde(default)]
     pub email: String,
-    #[serde(default)]
     pub country_code: String,
-    #[serde(default)]
     pub phone_number: String,
-    #[serde(default)]
     pub address: Option<String>,
-    #[serde(default)]
     pub city: Option<String>,
-    #[serde(default)]
     pub county: Option<String>,
-    #[serde(default)]
     pub country: Option<String>,
 }
 
@@ -234,12 +211,13 @@ pub async fn upsert(
             "first_name" => data.first_name = field_to_string(&mut field).await?,
             "last_name" => data.last_name = field_to_string(&mut field).await?,
             "middle_name" => data.middle_name = Some(field_to_string(&mut field).await?),
-            "photo_url" => {
+            "username" => data.username = field_to_string(&mut field).await?,
+            "profile_picture" => {
                 let file_data = field_to_byte(&mut field).await?;
                 if !file_data.is_empty() {
                     let unique_filename = format!("profile/{}-{}", Uuid::new_v4(), filename);
 
-                    upload_file(
+                let full_s3_key = upload_file(
                         &req,
                         &app_state,
                         &unique_filename,
@@ -248,8 +226,7 @@ pub async fn upsert(
                     )
                     .await?;
 
-                    let url = get_presigned_url(&app_state, &unique_filename, 3600).await?;
-                    data.photo_url = Some(url.clone());
+                    data.profile_picture = Some(full_s3_key);
                 }
             }
             "dob" => data.dob = field_to_date(&mut field).await?,
@@ -273,7 +250,7 @@ pub async fn upsert(
 
     let role_ids = get_user_role_ids(&req).await?;
 
-    let endpoint = format!("users/edit{}", claims.sub);
+    let endpoint = format!("users/edit/{}", claims.sub);
 
     let json_data = json!({
         "first_name": data.first_name,
@@ -335,8 +312,8 @@ pub async fn upsert(
             update_model.middle_name = Set(data.middle_name.clone());
             changed = true;
         }
-        if p.photo_url.as_deref() != data.photo_url.as_deref() {
-            update_model.photo_url = Set(data.photo_url.clone());
+        if p.photo_url.as_deref() != data.profile_picture.as_deref() {
+            update_model.photo_url = Set(data.profile_picture.clone());
             changed = true;
         }
         if p.dob != Some(data.dob) {
@@ -396,38 +373,38 @@ pub async fn upsert(
                 }))
             })?;
         }
+    } else {
+        main::entities::patients::ActiveModel {
+            sso_user_id: Set(Some(claims.sub)),
+            first_name: Set(Some(data.first_name.trim().to_string())),
+            last_name: Set(Some(data.last_name.trim().to_string())),
+            middle_name: Set(data.middle_name.clone()),
+            photo_url: Set(data.profile_picture.clone()),
+            dob: Set(Some(data.dob)),
+            gender: Set(Some(data.get_gender())),
+            national_id: Set(data.national_id.clone()),
+            passport_number: Set(data.passport_number.clone()),
+            email: Set(Some(data.email.trim().to_string())),
+            country_code: Set(Some(data.country_code.trim().to_string())),
+            phone_number: Set(Some(data.phone_number.trim().to_string())),
+            address: Set(data.address.clone()),
+            city: Set(data.city.clone()),
+            county: Set(data.county.clone()),
+            country: Set(data.country.clone()),
+            ..Default::default()
+        }
+        .insert(&app_state.main_db)
+        .await
+        .map_err(|err| {
+            log::error!("Failed to insert patient: {:?}", err);
+            ApiResponse::new(
+                500,
+                serde_json::json!({
+                    "message": "Failed to create patient. Please try again later."
+                }),
+            )
+        })?;
     }
-
-    main::entities::patients::ActiveModel {
-        sso_user_id: Set(Some(claims.sub)),
-        first_name: Set(Some(data.first_name.trim().to_string())),
-        last_name: Set(Some(data.last_name.trim().to_string())),
-        middle_name: Set(data.middle_name.clone()),
-        photo_url: Set(data.photo_url.clone()),
-        dob: Set(Some(data.dob)),
-        gender: Set(Some(data.get_gender())),
-        national_id: Set(data.national_id.clone()),
-        passport_number: Set(data.passport_number.clone()),
-        email: Set(Some(data.email.trim().to_string())),
-        country_code: Set(Some(data.country_code.trim().to_string())),
-        phone_number: Set(Some(data.phone_number.trim().to_string())),
-        address: Set(data.address.clone()),
-        city: Set(data.city.clone()),
-        county: Set(data.county.clone()),
-        country: Set(data.country.clone()),
-        ..Default::default()
-    }
-    .insert(&app_state.main_db)
-    .await
-    .map_err(|err| {
-        log::error!("Failed to insert patient: {:?}", err);
-        ApiResponse::new(
-            500,
-            serde_json::json!({
-                "message": "Failed to create patient. Please try again later."
-            }),
-        )
-    })?;
 
     Ok(ApiResponse::new(
         200,

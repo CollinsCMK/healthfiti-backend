@@ -36,7 +36,7 @@ impl MigrationTrait for Migration {
                     .col(string_null(Patients::FirstName))
                     .col(string_null(Patients::LastName))
                     .col(string_null(Patients::MiddleName))
-                    .col(string_null(Patients::PhotoUrl))
+                    .col(string_uniq(Patients::PhotoUrl).null())
                     .col(date_null(Patients::Dob))
                     .col(enumeration_null(
                         Patients::Gender,

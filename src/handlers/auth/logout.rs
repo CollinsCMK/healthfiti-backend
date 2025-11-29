@@ -11,6 +11,7 @@ use crate::{
 #[derive(Serialize, Deserialize, Debug)]
 pub struct LogoutQuery {
     all: Option<bool>,
+    jti: Option<String>,
 }
 
 #[post("/logout")]
@@ -24,7 +25,13 @@ pub async fn logout(
     }
 
     let logout_all = query.all.unwrap_or(false);
-    let endpoint = format!("auth/logout?all={}", logout_all);
+    let refresh_jti = query.jti.clone().unwrap_or_default();
+
+    let mut endpoint = format!("auth/logout?all={}", logout_all);
+
+    if !refresh_jti.is_empty() {
+        endpoint.push_str(&format!("&jti={}", refresh_jti));
+    }
 
     let api = ApiClient::new();
 

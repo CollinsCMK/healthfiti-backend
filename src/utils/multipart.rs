@@ -18,29 +18,29 @@ pub async fn upload_file(
     file_name: &str,
     content: Vec<u8>,
     content_type: &str,
-) -> Result<(), ApiResponse> {
+) -> Result<String, ApiResponse> {
     let claims = get_logged_in_user_claims(&req)?;
 
     let filename = if claims.tenant_pid.is_some() {
-        format!("{}/{}/", claims.tenant_pid.expect("Tenant ID"), file_name)
+        format!("{}/{}", claims.tenant_pid.expect("Tenant ID"), file_name)
     } else if claims.role_name.trim().to_lowercase() == "user" {
-        format!("patient/{}/", file_name)
+        format!("patient/{}", file_name)
     } else {
-        format!("admin/{}/", file_name)
+        format!("admin/{}", file_name)
     };
 
     app_state
         .s3_client
         .put_object()
         .bucket(&app_state.bucket)
-        .key(filename)
+        .key(&filename)
         .body(ByteStream::from(content))
         .content_type(content_type)
         .send()
         .await
         .map_err(|err| ApiResponse::new(500, json!({ "message": err.to_string() })))?;
 
-    Ok(())
+    Ok(filename)
 }
 
 pub async fn download_file(

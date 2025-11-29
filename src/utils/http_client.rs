@@ -41,11 +41,19 @@ impl ApiClient {
         payload: Option<&P>,
         method: reqwest::Method,
     ) -> Result<T, reqwest::Error> {
+        let user_agent = req
+            .headers()
+            .get("User-Agent")
+            .and_then(|v| v.to_str().ok())
+            .unwrap_or("Unknown")
+            .to_string();
+
         let url = format!("{}{}", self.base_url, path);
 
         let mut request = self
             .client
             .request(method, &url)
+            .header("User-Agent", user_agent)
             .header("Client-ID", &self.client_id)
             .header("Client-Secret", &self.client_secret);
 
