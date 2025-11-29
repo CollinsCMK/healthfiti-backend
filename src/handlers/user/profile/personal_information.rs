@@ -63,40 +63,44 @@ async fn get_personal_information(
             )
         })?;
 
-    Ok(ApiResponse::new(
-        200,
-        json!({
-            "personal_information": {
-                "profile_picture": personal_info.photo_url,
-                "first_name": profile.first_name,
-                "middle_name": personal_info.middle_name,
-                "last_name": profile.last_name,
-                "username": profile.username,
-                "email": profile.email,
-                "phone": {
-                    "country_code": profile.country_code,
-                    "phone_number": profile.phone_number,
+    if let Some(user) = &profile.user {
+        Ok(ApiResponse::new(
+            200,
+            json!({
+                "personal_information": {
+                    "profile_picture": personal_info.photo_url,
+                    "first_name": &user.first_name,
+                    "middle_name": personal_info.middle_name,
+                    "last_name": &user.last_name,
+                    "username": &user.username,
+                    "email": &user.email,
+                    "phone": {
+                        "country_code": &user.country_code,
+                        "phone_number": &user.phone_number,
+                    },
+                    "is_email_verified": user.is_email_verified,
+                    "is_phone_verified": user.is_phone_verified,
+                    "last_login": &user.last_login,
+                    "is_2fa_enabled": user.is_enabled,
+                    "is_secret_verified": user.is_secret_verified,
+                    "method": &user.method,
+                    "roles": &user.roles,
+                    "dob": personal_info.dob,
+                    "gender": personal_info.gender,
+                    "national_id": &personal_info.national_id,
+                    "passport_number": &personal_info.passport_number,
+                    "address": &personal_info.address,
+                    "city": &personal_info.city,
+                    "county": &personal_info.county,
+                    "country": &personal_info.country,
+                    "created_at": &user.created_at,
                 },
-                "is_email_verified": profile.is_email_verified,
-                "is_phone_verified": profile.is_phone_verified,
-                "last_login": profile.last_login,
-                "is_2fa_enabled": profile.is_enabled,
-                "is_secret_verified": profile.is_secret_verified,
-                "method": profile.method,
-                "roles": profile.roles,
-                "dob": personal_info.dob,
-                "gender": personal_info.gender,
-                "national_id": personal_info.national_id,
-                "passport_number": personal_info.passport_number,
-                "address": personal_info.address,
-                "city": personal_info.city,
-                "county": personal_info.county,
-                "country": personal_info.country,
-                "created_at": profile.created_at,
-            },
-            "message": "User personal information fetched successfully"
-        }),
-    ))
+                "message": "User personal information fetched successfully"
+            }),
+        ))
+    } else {
+        Ok(ApiResponse::new(404, json!({"message": "User not found"})))
+    }
 }
 
 #[derive(Debug, Default, Serialize, Deserialize)]

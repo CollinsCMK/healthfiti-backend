@@ -20,10 +20,7 @@ impl MigrationTrait for Migration {
                     .foreign_key(
                         ForeignKey::create()
                             .name("fk-patient_insurance-patient_id")
-                            .from(
-                                PatientInsurance::Table,
-                                PatientInsurance::PatientId,
-                            )
+                            .from(PatientInsurance::Table, PatientInsurance::PatientId)
                             .to(Patients::Table, Patients::Id)
                             .on_delete(ForeignKeyAction::Cascade),
                     )

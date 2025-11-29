@@ -1,77 +1,66 @@
 use std::collections::HashMap;
 
-use actix_web::{HttpRequest, patch, post, web};
+use actix_web::{HttpRequest, get, patch, post, web};
 use chrono::NaiveDateTime;
 use reqwest::Method;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use uuid::Uuid;
 
-use crate::{handlers::auth::phone_verification::SuccessResponse, utils::{
-    api_response::ApiResponse, http_client::ApiClient, jwt::get_logged_in_user_claims, validator_error::ValidationError,
-}};
+use crate::{
+    db::main::{self, ColumnTrait, QueryFilter},
+    handlers::auth::phone_verification::SuccessResponse,
+    utils::{
+        api_response::ApiResponse, app_state::AppState, http_client::ApiClient,
+        jwt::get_logged_in_user_claims, validator_error::ValidationError,
+    },
+};
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Default, Debug, Clone)]
+#[serde(default)]
 pub struct RolesData {
-    #[serde(default)]
-    pid: Uuid,
-    #[serde(default)]
-    name: String,
+    pub pid: Uuid,
+    pub name: String,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Default, Debug, Clone)]
+#[serde(default)]
 pub struct UserResponse {
-    #[serde(default)]
     pub pid: String,
-    #[serde(default)]
     pub first_name: String,
-    #[serde(default)]
     pub last_name: String,
-    #[serde(default)]
     pub email: String,
-    #[serde(default)]
     pub is_email_verified: bool,
-    #[serde(default)]
     pub country_code: String,
-    #[serde(default)]
     pub phone_number: String,
-    #[serde(default)]
     pub is_phone_verified: bool,
-    #[serde(default)]
     pub username: String,
-    #[serde(default)]
-    pub last_login: NaiveDateTime,
-    #[serde(default)]
-    pub is_enabled: bool,
-    #[serde(default)]
+    pub last_login: Option<NaiveDateTime>,
+    pub is_enabled: Option<bool>,
     pub method: Option<String>,
-    #[serde(default)]
-    pub is_secret_verified: bool,
-    #[serde(default)]
+    pub is_secret_verified: Option<bool>,
     pub tenant_name: Option<String>,
-    #[serde(default)]
     pub roles: Vec<RolesData>,
-    #[serde(default)]
     pub created_at: NaiveDateTime,
+}
+
+#[derive(Serialize, Deserialize, Default, Debug)]
+#[serde(default)]
+pub struct ProfileDTO {
+    pub user: Option<UserResponse>,
     pub message: String,
 }
 
-pub async fn get_profile_data(req: &HttpRequest) -> Result<UserResponse, ApiResponse> {
-    let claims = get_logged_in_user_claims(&req)?;
-
+pub async fn get_profile_data(req: &HttpRequest) -> Result<ProfileDTO, ApiResponse> {
     let api = ApiClient::new();
-    let endpoint = format!("users/show/{}", claims.sub);
-    let profile: UserResponse = api
-        .call(&endpoint, &req, None::<&()>, Method::GET)
+    let profile: ProfileDTO = api
+        .call("users/me", &req, None::<&()>, Method::GET)
         .await
         .map_err(|err| {
-            log::error!("auth/login API error: {}", err);
-
+            log::error!("users/me API error: {}", err);
             ApiResponse::new(
                 500,
-                json!({
-                    "message": "Login failed. Please try again."
-                }),
+                json!({ "message": "Failed to get user data. Please try again." }),
             )
         })?;
 
@@ -89,12 +78,75 @@ pub async fn get_user_role_ids(req: &HttpRequest) -> Result<Vec<Uuid>, ApiRespon
     })?;
 
     let role_ids = profile
+        .user
+        .unwrap()
         .roles
         .into_iter()
         .map(|r| r.pid)
         .collect::<Vec<Uuid>>();
 
     Ok(role_ids)
+}
+
+#[get("")]
+async fn get_logged_in_user_data(
+    req: HttpRequest,
+    app_state: web::Data<AppState>,
+) -> Result<ApiResponse, ApiResponse> {
+    let claims = get_logged_in_user_claims(&req)?;
+    let profile = get_profile_data(&req).await?;
+
+    let patient = main::entities::patients::Entity::find_by_sso_user_id(claims.sub)
+        .filter(main::entities::patients::Column::DeletedAt.is_null())
+        .one(&app_state.main_db)
+        .await
+        .map_err(|err| {
+            log::error!(
+                "Failed to query patient by sso_user_id {}: {:?}",
+                claims.sub,
+                err
+            );
+
+            ApiResponse::new(
+                500,
+                json!({ "message": "Internal server error. Please try again later." }),
+            )
+        })?;
+
+    let profile_picture = patient.as_ref().and_then(|p| p.photo_url.clone());
+
+    let has_patient_data = patient.is_some();
+
+    if let Some(user) = &profile.user {
+        Ok(ApiResponse::new(
+            200,
+            json!({
+                "profile": {
+                    "pid": user.pid,
+                    "first_name": &user.first_name,
+                    "last_name": &user.last_name,
+                    "email": &user.email,
+                    "is_email_verified": user.is_email_verified,
+                    "country_code": &user.country_code,
+                    "phone_number": &user.phone_number,
+                    "is_phone_verified": user.is_phone_verified,
+                    "username": &user.username,
+                    "last_login": &user.last_login,
+                    "is_enabled": user.is_enabled,
+                    "method": &user.method,
+                    "is_secret_verified": user.is_secret_verified,
+                    "tenant_name": &user.tenant_name,
+                    "roles": &user.roles,
+                    "profile_picture": profile_picture,
+                    "has_patient_data": has_patient_data,
+                    "created_at": &user.created_at,
+                },
+                "message": "User profile fetched successfully"
+            }),
+        ))
+    } else {
+        Ok(ApiResponse::new(404, json!({"message": "User not found"})))
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Default)]
@@ -106,11 +158,9 @@ pub struct TotpResponse {
 }
 
 #[post("/totp")]
-async fn enable_2fa_totp(
-    req: HttpRequest,
-) -> Result<ApiResponse, ApiResponse> {
+async fn enable_2fa_totp(req: HttpRequest) -> Result<ApiResponse, ApiResponse> {
     let api = ApiClient::new();
-    
+
     let totp: TotpResponse = api
         .call("users/me/totp", &req, None::<&()>, Method::POST)
         .await
@@ -126,9 +176,12 @@ async fn enable_2fa_totp(
         })?;
 
     if totp.otpauth_url.is_none() {
-        return Ok(ApiResponse::new(400, json!({
-            "message": totp.message
-        })))
+        return Ok(ApiResponse::new(
+            400,
+            json!({
+                "message": totp.message
+            }),
+        ));
     }
 
     Ok(ApiResponse::new(
@@ -172,7 +225,7 @@ async fn edit_2fa_totp(
     }
 
     let api = ApiClient::new();
-    
+
     let totp: TotpResponse = api
         .call("users/me/totp", &req, Some(&data), Method::PATCH)
         .await
@@ -188,9 +241,12 @@ async fn edit_2fa_totp(
         })?;
 
     if totp.otpauth_url.is_none() {
-        return Ok(ApiResponse::new(400, json!({
-            "message": totp.message
-        })))
+        return Ok(ApiResponse::new(
+            400,
+            json!({
+                "message": totp.message
+            }),
+        ));
     }
 
     Ok(ApiResponse::new(
@@ -221,7 +277,7 @@ async fn verify_totp_data(
     }
 
     let api = ApiClient::new();
-    
+
     let totp: VerifyTotpResponse = api
         .call("users/me/verify_totp", &req, Some(&data), Method::POST)
         .await
@@ -237,9 +293,12 @@ async fn verify_totp_data(
         })?;
 
     if totp.recovery_codes.is_none() {
-        return Ok(ApiResponse::new(400, json!({
-            "message": totp.message
-        })))
+        return Ok(ApiResponse::new(
+            400,
+            json!({
+                "message": totp.message
+            }),
+        ));
     }
 
     Ok(ApiResponse::new(
@@ -282,7 +341,7 @@ async fn regenerate_recovery_codes(
     }
 
     let api = ApiClient::new();
-    
+
     let totp: VerifyTotpResponse = api
         .call("users/me/regenerate_codes", &req, Some(&data), Method::POST)
         .await
@@ -298,9 +357,12 @@ async fn regenerate_recovery_codes(
         })?;
 
     if totp.recovery_codes.is_none() {
-        return Ok(ApiResponse::new(400, json!({
-            "message": totp.message
-        })))
+        return Ok(ApiResponse::new(
+            400,
+            json!({
+                "message": totp.message
+            }),
+        ));
     }
 
     Ok(ApiResponse::new(
@@ -313,11 +375,9 @@ async fn regenerate_recovery_codes(
 }
 
 #[post("/enable_otp")]
-async fn enable_otp(
-    req: HttpRequest,
-) -> Result<ApiResponse, ApiResponse> {
-        let api = ApiClient::new();
-    
+async fn enable_otp(req: HttpRequest) -> Result<ApiResponse, ApiResponse> {
+    let api = ApiClient::new();
+
     let otp: SuccessResponse = api
         .call("users/me/enable_otp", &req, None::<&()>, Method::POST)
         .await

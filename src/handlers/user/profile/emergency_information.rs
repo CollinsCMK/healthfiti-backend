@@ -200,31 +200,37 @@ pub async fn upsert(
             )
         })?;
 
+    let secondary_contact_json = if let Some(sec) = &data.secondary_contact {
+        json!({
+            "name": &sec.name,
+            "relationship": &sec.relationship,
+            "email": &sec.email,
+            "phone": {
+                "country_code": &sec.phone.country_code,
+                "phone_number": &sec.phone.phone_number,
+            },
+        })
+    } else {
+        json!(null)
+    };
+
     let json_data = json!({
         "primary_contact_emergency_contact": {
-            "name": data.primary_contact.name,
-            "relationship": data.primary_contact.relationship,
-            "email": data.primary_contact.email,
+            "name": &data.primary_contact.name,
+            "relationship": &data.primary_contact.relationship,
+            "email": &data.primary_contact.email,
             "phone": {
-                "country_code": data.primary_contact.phone.country_code,
-                "phone_number": data.primary_contact.phone.phone_number,
+                "country_code": &data.primary_contact.phone.country_code,
+                "phone_number": &data.primary_contact.phone.phone_number,
             },
         },
-        "secondary_contact_emergency_contact": {
-            "name": data.secondary_contact.clone().unwrap().name,
-            "relationship": data.secondary_contact.clone().unwrap().relationship,
-            "email": data.secondary_contact.clone().unwrap().email,
-            "phone": {
-                "country_code": data.secondary_contact.clone().unwrap().phone.country_code,
-                "phone_number": data.secondary_contact.clone().unwrap().phone.phone_number,
-            },
-        },
+        "secondary_contact_emergency_contact": secondary_contact_json,
         "support_preferences": {
             "allow_sms_notifications": data.support_preferences.allow_sms_notifications,
             "allow_email_notifications": data.support_preferences.allow_email_notifications,
             "share_medical_info": data.support_preferences.share_medical_info,
         },
-        "additional_notes": data.additional_notes,
+        "additional_notes": &data.additional_notes,
     });
     let mut changed = false;
     let mut update_model: main::entities::patients::ActiveModel = patient.to_owned().into();

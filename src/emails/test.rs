@@ -1,9 +1,7 @@
 use actix_web::web;
 use serde_json::json;
 
-use crate::{
-    utils::{api_response::ApiResponse, app_state::AppState, message_queue::MessageType},
-};
+use crate::utils::{api_response::ApiResponse, app_state::AppState, message_queue::MessageType};
 
 pub async fn send_test_email(
     to: String,

@@ -11,14 +11,16 @@ use aws_credential_types::Credentials;
 use aws_sdk_s3::{Client, Config};
 use migration_main::sea_orm::{Database, DatabaseConnection};
 
-use crate::utils::{app_state::AppState, message_queue::init_message_queue, migrate::migrate_tenants};
+use crate::utils::{
+    app_state::AppState, message_queue::init_message_queue, migrate::migrate_tenants,
+};
 
 mod db;
+mod emails;
 mod handlers;
 mod middlewares;
 mod routes;
 mod utils;
-mod emails;
 
 #[derive(Debug)]
 struct MainError {
@@ -90,7 +92,7 @@ async fn main() -> Result<(), MainError> {
     let database_url = (utils::constants::DATABASE_URL).clone();
     let max_file_size = (utils::constants::MAX_FILE_SIZE).clone() as usize;
     let redis_url = (utils::constants::REDIS_URL).clone();
-    
+
     let main_db: DatabaseConnection =
         Database::connect(database_url)
             .await
@@ -109,7 +111,7 @@ async fn main() -> Result<(), MainError> {
     })?;
 
     let message_queue = init_message_queue(&redis_url);
-    
+
     let backend = InMemoryBackend::builder().build();
 
     HttpServer::new(move || {
@@ -131,14 +133,14 @@ async fn main() -> Result<(), MainError> {
         }
 
         App::new()
-            .app_data(AppState {
+            .app_data(web::Data::new(AppState {
                 main_db: main_db.clone(),
                 tenant_dbs: tenant_dbs.clone(),
                 s3_client: client.clone(),
                 bucket: minio_bucket.clone(),
                 message_queue: message_queue.clone(),
                 redis: redis_client.clone(),
-            })
+            }))
             .app_data(web::PayloadConfig::new(max_file_size))
             .wrap(cors)
             .wrap(Logger::default())

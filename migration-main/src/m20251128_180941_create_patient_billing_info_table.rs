@@ -1,4 +1,7 @@
-use sea_orm_migration::{prelude::{extension::postgres::Type, *}, schema::*};
+use sea_orm_migration::{
+    prelude::{extension::postgres::Type, *},
+    schema::*,
+};
 
 #[derive(DeriveMigrationName)]
 pub struct Migration;
@@ -34,10 +37,7 @@ impl MigrationTrait for Migration {
                     .foreign_key(
                         ForeignKey::create()
                             .name("fk-patient_billing-patient_id")
-                            .from(
-                                PatientBilling::Table,
-                                PatientBilling::PatientId,
-                            )
+                            .from(PatientBilling::Table, PatientBilling::PatientId)
                             .to(Patients::Table, Patients::Id)
                             .on_delete(ForeignKeyAction::Cascade),
                     )
@@ -79,7 +79,6 @@ impl MigrationTrait for Migration {
                     .to_owned(),
             )
             .await
-
     }
 }
 
