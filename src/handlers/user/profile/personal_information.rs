@@ -20,9 +20,7 @@ use crate::{
         app_state::AppState,
         http_client::ApiClient,
         jwt::get_logged_in_user_claims,
-        multipart::{
-            field_to_byte, field_to_date, field_to_string, upload_file,
-        },
+        multipart::{field_to_byte, field_to_date, field_to_string, upload_file},
         validator_error::ValidationError,
     },
 };
@@ -103,7 +101,7 @@ pub struct PersonalInfo {
     pub middle_name: Option<String>,
     pub username: String,
     pub profile_picture: Option<String>,
-    pub dob: NaiveDate,
+    pub dob: Option<NaiveDate>,
     pub gender: Option<String>,
     pub national_id: Option<String>,
     pub passport_number: Option<String>,
@@ -165,7 +163,7 @@ impl PersonalInfo {
             );
         }
 
-        if self.dob == chrono::NaiveDate::from_ymd_opt(0, 1, 1).unwrap_or_default() {
+        if self.dob.is_none() {
             errors.insert("dob".to_string(), "Date of birth is required".to_string());
         }
 
@@ -217,7 +215,7 @@ pub async fn upsert(
                 if !file_data.is_empty() {
                     let unique_filename = format!("profile/{}-{}", Uuid::new_v4(), filename);
 
-                let full_s3_key = upload_file(
+                    let full_s3_key = upload_file(
                         &req,
                         &app_state,
                         &unique_filename,
@@ -229,7 +227,7 @@ pub async fn upsert(
                     data.profile_picture = Some(full_s3_key);
                 }
             }
-            "dob" => data.dob = field_to_date(&mut field).await?,
+            "dob" => data.dob = Some(field_to_date(&mut field).await?),
             "gender" => data.gender = Some(field_to_string(&mut field).await?),
             "national_id" => data.national_id = Some(field_to_string(&mut field).await?),
             "passport_number" => data.passport_number = Some(field_to_string(&mut field).await?),
@@ -312,13 +310,17 @@ pub async fn upsert(
             update_model.middle_name = Set(data.middle_name.clone());
             changed = true;
         }
-        if p.photo_url.as_deref() != data.profile_picture.as_deref() {
-            update_model.photo_url = Set(data.profile_picture.clone());
-            changed = true;
+        if let Some(new_photo) = data.profile_picture.as_deref() {
+            if p.photo_url.as_deref() != Some(new_photo) {
+                update_model.photo_url = Set(Some(new_photo.to_string()));
+                changed = true;
+            }
         }
-        if p.dob != Some(data.dob) {
-            update_model.dob = Set(Some(data.dob));
-            changed = true;
+        if let Some(new_dob) = data.dob {
+            if p.dob != Some(new_dob) {
+                update_model.dob = Set(Some(new_dob));
+                changed = true;
+            }
         }
         if p.gender != Some(data.get_gender()) {
             update_model.gender = Set(Some(data.get_gender()));
@@ -380,7 +382,7 @@ pub async fn upsert(
             last_name: Set(Some(data.last_name.trim().to_string())),
             middle_name: Set(data.middle_name.clone()),
             photo_url: Set(data.profile_picture.clone()),
-            dob: Set(Some(data.dob)),
+            dob: Set(data.dob),
             gender: Set(Some(data.get_gender())),
             national_id: Set(data.national_id.clone()),
             passport_number: Set(data.passport_number.clone()),

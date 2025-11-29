@@ -1,4 +1,4 @@
-use actix_web::{HttpRequest, web};
+use actix_web::{HttpRequest, post, web};
 use chrono::{Datelike, Utc};
 use serde_json::json;
 
@@ -8,7 +8,8 @@ use crate::{
     utils::{api_response::ApiResponse, app_state::AppState, message_queue::MessageType},
 };
 
-pub async fn send(
+#[post("")]
+async fn send(
     app_state: web::Data<AppState>,
     req: HttpRequest,
 ) -> Result<ApiResponse, ApiResponse> {

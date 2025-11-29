@@ -1,4 +1,4 @@
 pub mod profile;
 pub mod scope;
-pub mod test;
 pub mod session;
+pub mod test;

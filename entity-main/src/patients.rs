@@ -17,6 +17,7 @@ pub struct Model {
     pub first_name: Option<String>,
     pub last_name: Option<String>,
     pub middle_name: Option<String>,
+    #[sea_orm(unique)]
     pub photo_url: Option<String>,
     pub dob: Option<Date>,
     pub gender: Option<Gender>,

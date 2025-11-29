@@ -35,9 +35,7 @@ struct DeviceInfo {
 }
 
 #[get("/me")]
-async fn get_user_sessions(
-    req: HttpRequest,
-) -> Result<ApiResponse, ApiResponse> {
+async fn get_user_sessions(req: HttpRequest) -> Result<ApiResponse, ApiResponse> {
     let api = ApiClient::new();
 
     let sessions: SessionResponse = api
