@@ -19,7 +19,12 @@ use crate::{
         },
     },
     utils::{
-        api_response::ApiResponse, app_state::AppState, jwt::{get_logged_in_user_claims, get_patient_id}, multipart::{field_to_byte, field_to_date, field_to_string, upload_file}, pagination::PaginationParams, validator_error::ValidationError
+        api_response::ApiResponse,
+        app_state::AppState,
+        jwt::{get_logged_in_user_claims, get_patient_id},
+        multipart::{field_to_byte, field_to_date, field_to_string, upload_file},
+        pagination::PaginationParams,
+        validator_error::ValidationError,
     },
 };
 
@@ -237,23 +242,38 @@ impl PatientInsuranceData {
         }
 
         if self.coverage_start_date < Utc::now().date_naive() {
-            errors.insert("coverage_start_date".into(), "Coverage start date cannot be in the past.".into());
+            errors.insert(
+                "coverage_start_date".into(),
+                "Coverage start date cannot be in the past.".into(),
+            );
         }
 
         if self.coverage_end_date < Utc::now().date_naive() {
-            errors.insert("coverage_end_date".into(), "Coverage end date cannot be in the past.".into());
+            errors.insert(
+                "coverage_end_date".into(),
+                "Coverage end date cannot be in the past.".into(),
+            );
         }
 
         if self.coverage_end_date < self.coverage_start_date {
-            errors.insert("coverage_dates".into(), "Coverage end date cannot be before start date.".into());
+            errors.insert(
+                "coverage_dates".into(),
+                "Coverage end date cannot be before start date.".into(),
+            );
         }
 
         if self.insurance_card_front.trim().is_empty() {
-            errors.insert("insurance_card_front".into(), "Insurance card front is required.".into());
+            errors.insert(
+                "insurance_card_front".into(),
+                "Insurance card front is required.".into(),
+            );
         }
 
         if self.insurance_card_back.trim().is_empty() {
-            errors.insert("insurance_card_back".into(), "Insurance card back is required.".into());
+            errors.insert(
+                "insurance_card_back".into(),
+                "Insurance card back is required.".into(),
+            );
         }
 
         if errors.is_empty() {
@@ -293,7 +313,8 @@ async fn multipart_data(
             "insurance_card_front" => {
                 let file_data = field_to_byte(&mut field).await?;
                 if !file_data.is_empty() {
-                    let unique_filename = format!("insurance_card_front/{}-{}", Uuid::new_v4(), filename);
+                    let unique_filename =
+                        format!("insurance_card_front/{}-{}", Uuid::new_v4(), filename);
 
                     let full_s3_key = upload_file(
                         &req,
@@ -310,7 +331,8 @@ async fn multipart_data(
             "insurance_card_back" => {
                 let file_data = field_to_byte(&mut field).await?;
                 if !file_data.is_empty() {
-                    let unique_filename = format!("insurance_card_back/{}-{}", Uuid::new_v4(), filename);
+                    let unique_filename =
+                        format!("insurance_card_back/{}-{}", Uuid::new_v4(), filename);
 
                     let full_s3_key = upload_file(
                         &req,
@@ -323,7 +345,7 @@ async fn multipart_data(
 
                     data.insurance_card_back = full_s3_key;
                 }
-            },
+            }
             _ => {}
         }
     }
@@ -357,9 +379,9 @@ async fn create(
         insurance_card_back: Set(Some(data.insurance_card_back)),
         ..Default::default()
     }
-        .insert(&app_state.main_db)
-        .await
-        .map_err(|err| ApiResponse::new(500, json!({ "message": err.to_string() })))?;
+    .insert(&app_state.main_db)
+    .await
+    .map_err(|err| ApiResponse::new(500, json!({ "message": err.to_string() })))?;
 
     Ok(ApiResponse::new(
         201,
@@ -384,14 +406,18 @@ async fn edit(
         .await
         .map_err(|err| {
             log::error!("Failed to fetch patient insurance: {}", err);
-            ApiResponse::new(500, json!({ "message": "Failed to fetch patient insurance" }))
+            ApiResponse::new(
+                500,
+                json!({ "message": "Failed to fetch patient insurance" }),
+            )
         })?
         .ok_or_else(|| {
             log::error!("Patient insurance not found for id: {}", insurance_id);
             ApiResponse::new(404, json!({ "message": "Patient insurance not found" }))
         })?;
 
-    let mut update_model: main::entities::patient_insurance::ActiveModel = insurance_model.to_owned().into();
+    let mut update_model: main::entities::patient_insurance::ActiveModel =
+        insurance_model.to_owned().into();
     let mut changed = false;
 
     if insurance_model.provider.clone() != data.provider.trim() {
@@ -436,7 +462,10 @@ async fn edit(
         .await
         .map_err(|err| {
             log::error!("Failed to update patient insurance: {}", err);
-            ApiResponse::new(500, json!({ "message": "Failed to update patient insurance" }))
+            ApiResponse::new(
+                500,
+                json!({ "message": "Failed to update patient insurance" }),
+            )
         })?;
 
     Ok(ApiResponse::new(
@@ -461,7 +490,10 @@ async fn set_primary(
         .await
         .map_err(|err| {
             log::error!("Failed to fetch patient insurance: {}", err);
-            ApiResponse::new(500, json!({ "message": "Failed to fetch patient insurance" }))
+            ApiResponse::new(
+                500,
+                json!({ "message": "Failed to fetch patient insurance" }),
+            )
         })?
         .ok_or_else(|| {
             log::error!("Patient insurance not found for id: {}", insurance_id);
@@ -471,15 +503,22 @@ async fn set_primary(
     let was_primary = insurance_model.is_primary;
     let new_status = !was_primary;
 
-    let mut update_insurance_model: main::entities::patient_insurance::ActiveModel = insurance_model.to_owned().into();
+    let mut update_insurance_model: main::entities::patient_insurance::ActiveModel =
+        insurance_model.to_owned().into();
     update_insurance_model.is_primary = Set(new_status);
     update_insurance_model.updated_at = Set(Utc::now().naive_utc());
     update_insurance_model
         .update(&app_state.main_db)
         .await
         .map_err(|err| {
-            log::error!("Failed to update primary status of patient insurance: {}", err);
-            ApiResponse::new(500, json!({ "message": "Failed to update patient insurance status" }))
+            log::error!(
+                "Failed to update primary status of patient insurance: {}",
+                err
+            );
+            ApiResponse::new(
+                500,
+                json!({ "message": "Failed to update patient insurance status" }),
+            )
         })?;
 
     Ok(ApiResponse::new(
@@ -506,14 +545,18 @@ async fn destroy(
         .await
         .map_err(|err| {
             log::error!("Failed to fetch patient insurance: {}", err);
-            ApiResponse::new(500, json!({ "message": "Failed to fetch patient insurance" }))
+            ApiResponse::new(
+                500,
+                json!({ "message": "Failed to fetch patient insurance" }),
+            )
         })?
         .ok_or_else(|| {
             log::error!("Patient insurance not found for id: {}", insurance_id);
             ApiResponse::new(404, json!({ "message": "Patient insurance not found" }))
         })?;
 
-    let mut update_model: main::entities::patient_insurance::ActiveModel = insurance_model.to_owned().into();
+    let mut update_model: main::entities::patient_insurance::ActiveModel =
+        insurance_model.to_owned().into();
     update_model.deleted_at = Set(Some(chrono::Utc::now().naive_utc()));
     update_model.updated_at = Set(chrono::Utc::now().naive_utc());
 
@@ -522,7 +565,10 @@ async fn destroy(
         .await
         .map_err(|err| {
             log::error!("Failed to delete patient insurance: {}", err);
-            ApiResponse::new(500, json!({ "message": "Failed to delete patient insurance" }))
+            ApiResponse::new(
+                500,
+                json!({ "message": "Failed to delete patient insurance" }),
+            )
         })?;
 
     Ok(ApiResponse::new(

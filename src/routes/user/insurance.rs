@@ -10,6 +10,6 @@ pub fn config(config: &mut web::ServiceConfig) {
             .service(insurance::create)
             .service(insurance::edit)
             .service(insurance::set_primary)
-            .service(insurance::destroy)
+            .service(insurance::destroy),
     );
 }

@@ -9,10 +9,10 @@ use actix_web::{App, HttpServer, middleware::Logger, web};
 use aws_config::{BehaviorVersion, Region};
 use aws_credential_types::Credentials;
 use aws_sdk_s3::{Client, Config};
-use migration_main::sea_orm::{Database, DatabaseConnection};
 
-use crate::utils::{
-    app_state::AppState, message_queue::init_message_queue, migrate::migrate_tenants,
+use crate::{
+    db::main,
+    utils::{app_state::AppState, message_queue::init_message_queue, migrate::migrate_tenants},
 };
 
 mod db;
@@ -20,6 +20,7 @@ mod emails;
 mod handlers;
 mod middlewares;
 mod routes;
+mod seeders;
 mod utils;
 
 #[derive(Debug)]
@@ -93,8 +94,8 @@ async fn main() -> Result<(), MainError> {
     let max_file_size = (utils::constants::MAX_FILE_SIZE).clone() as usize;
     let redis_url = (utils::constants::REDIS_URL).clone();
 
-    let main_db: DatabaseConnection =
-        Database::connect(database_url)
+    let main_db: main::migrations::sea_orm::DatabaseConnection =
+        main::migrations::sea_orm::Database::connect(database_url)
             .await
             .map_err(|err| MainError {
                 message: err.to_string(),

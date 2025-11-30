@@ -67,4 +67,26 @@ impl ApiClient {
 
         request.send().await?.json::<T>().await
     }
+
+    pub async fn call_with_secret<T: DeserializeOwned, P: Serialize>(
+        &self,
+        path: &str,
+        payload: Option<&P>,
+        method: reqwest::Method,
+    ) -> Result<T, reqwest::Error> {
+        let url = format!("{}{}", self.base_url, path);
+
+        let mut request = self
+            .client
+            .request(method, &url)
+            .header("Client-ID", &self.client_id)
+            .header("Client-Secret", &self.client_secret)
+            .header("User-Agent", "ApiClient/1.0");
+
+        if let Some(body) = payload {
+            request = request.json(body);
+        }
+
+        request.send().await?.json::<T>().await
+    }
 }

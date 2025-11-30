@@ -14,6 +14,7 @@ use crate::{
         },
         tenant,
     },
+    seeders::all::{seed_main_all, seed_tenant_all},
     utils::api_response::ApiResponse,
 };
 
@@ -29,6 +30,11 @@ pub async fn migrate_tenants(
             log::error!("Failed to migrate main DB: {}", err);
             ApiResponse::new(500, json!({ "message": err.to_string() }))
         })?;
+
+    seed_main_all(&main_db).await.map_err(|err| {
+        log::error!("Failed to seed main db data: {}", err);
+        ApiResponse::new(500, json!({ "message": err.to_string() }))
+    })?;
 
     let tenants = entity_main::tenants::Entity::find()
         .filter(entity_main::tenants::Column::DeletedAt.is_null())
@@ -56,6 +62,11 @@ pub async fn migrate_tenants(
                 log::error!("Tenant {} migration failed: {}", tenant_id, err);
                 ApiResponse::new(500, json!({ "message": err.to_string() }))
             })?;
+
+        seed_tenant_all(&tenant_db).await.map_err(|err| {
+            log::error!("Failed to seed tenant db data {}: {}", tenant_id, err);
+            ApiResponse::new(500, json!({ "message": err.to_string() }))
+        })?;
 
         tenant_dbs.write().unwrap().insert(tenant_id, tenant_db);
     }
