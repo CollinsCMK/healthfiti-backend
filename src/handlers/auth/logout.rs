@@ -36,7 +36,7 @@ pub async fn logout(
     let api = ApiClient::new();
 
     let logout: SuccessResponse = api
-        .call(&endpoint, &req, Some(&*data), Method::POST)
+        .call(&endpoint, &Some(req.clone()), Some(&*data), Method::POST)
         .await
         .map_err(|err| {
             log::error!("Logout API error: {}", err);

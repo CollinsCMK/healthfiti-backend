@@ -1,140 +1,108 @@
+use actix_multipart::Multipart;
 use actix_web::{HttpRequest, web};
-use serde_json::json;
+use uuid::Uuid;
 
 use crate::{
     db::main::{
         self,
-        migrations::sea_orm::{Condition, EntityTrait, PaginatorTrait, QueryFilter, QueryOrder},
+        migrations::sea_orm::{ColumnTrait, EntityTrait, QueryFilter},
     },
-    utils::{api_response::ApiResponse, app_state::AppState, pagination::PaginationParams},
+    handlers::services::patient_insurance::{
+        create_patient_insurance, delete_permanently_patient_insurance, destroy_patient_insurance, edit_patient_insurance, fetch_patient_insurance, fetch_patient_insurances, restore_patient_insurance, set_primary_patient_insurance
+    },
+    utils::{
+        api_response::ApiResponse, app_state::AppState, pagination::PaginationParams,
+        permission::has_permission,
+    },
 };
 
 pub async fn index(
     app_state: web::Data<AppState>,
     query: web::Query<PaginationParams>,
+    req: HttpRequest,
 ) -> Result<ApiResponse, ApiResponse> {
-    let fetch_all = query.all.unwrap_or(false);
-
     let mut stmt = main::entities::patients::Entity::find()
         .find_also_related(main::entities::patient_insurance::Entity);
 
-    if let Some(term) = &query.search {
-        use main::migrations::{Expr, extension::postgres::PgExpr};
-
-        let like = format!("%{}%", term);
-
-        stmt = stmt.filter(
-            Condition::any()
-                .add(
-                    Expr::col((
-                        main::entities::patient_insurance::Entity,
-                        main::entities::patient_insurance::Column::Provider,
-                    ))
-                    .ilike(like.clone()),
-                )
-                .add(
-                    Expr::col((
-                        main::entities::patient_insurance::Entity,
-                        main::entities::patient_insurance::Column::PolicyNumber,
-                    ))
-                    .ilike(like.clone()),
-                )
-                .add(
-                    Expr::col((
-                        main::entities::patient_insurance::Entity,
-                        main::entities::patient_insurance::Column::GroupNumber,
-                    ))
-                    .ilike(like.clone()),
-                ),
-        );
+    if !has_permission("view_archived_patient_insurances", &req).await? {
+        stmt = stmt
+            .filter(main::entities::patient_insurance::Column::DeletedAt.is_null())
+            .filter(main::entities::patients::Column::DeletedAt.is_null());
     }
 
-    if fetch_all {
-        let model = stmt
-            .order_by_asc(main::entities::patient_insurance::Column::CreatedAt)
-            .order_by_asc(main::entities::patient_insurance::Column::Id)
-            .all(&app_state.main_db)
-            .await
-            .map_err(|err| ApiResponse::new(500, json!({"message": err.to_string()})))?
-            .into_iter()
-            .map(|(_, ins)| {
-                if let Some(ins) = ins {
-                    json!({
-                        "pid": ins.pid,
-                        "provider": ins.provider,
-                        "policy_number": ins.policy_number,
-                        "group_number": ins.group_number,
-                        "plan_type": ins.plan_type,
-                        "coverage_start_date": ins.coverage_start_date,
-                        "coverage_end_date": ins.coverage_end_date,
-                        "is_primary": ins.is_primary,
-                    })
-                } else {
-                    json!(null)
-                }
-            })
-            .collect::<Vec<_>>();
+    fetch_patient_insurances(stmt, &app_state, &query).await
+}
 
-        return Ok(ApiResponse::new(
-            200,
-            json!({
-                "insurances": model,
-                "success": "Patient insurance fetched successfully"
-            }),
-        ));
+pub async fn show(
+    app_state: web::Data<AppState>,
+    path: web::Path<Uuid>,
+    req: HttpRequest,
+) -> Result<ApiResponse, ApiResponse> {
+    let insurance_id = path.into_inner();
+
+    let mut stmt = main::entities::patient_insurance::Entity::find_by_pid(insurance_id)
+        .find_also_related(main::entities::patients::Entity);
+
+    if !has_permission("view_archived_patient_insurances", &req).await? {
+        stmt = stmt
+            .filter(main::entities::patient_insurance::Column::DeletedAt.is_null())
+            .filter(main::entities::patients::Column::DeletedAt.is_null());
     }
 
-    let page = query.page.unwrap_or(1).min(1);
-    let limit = query.limit.unwrap_or(10).clamp(1, 100);
-    let paginator = stmt.paginate(&app_state.main_db, limit);
+    fetch_patient_insurance(stmt, &app_state).await
+}
 
-    let total_items = paginator
-        .num_items()
-        .await
-        .map_err(|err| ApiResponse::new(500, json!({"message": err.to_string()})))?;
+pub async fn create(
+    payload: Multipart,
+    app_state: web::Data<AppState>,
+    req: HttpRequest,
+) -> Result<ApiResponse, ApiResponse> {
+    create_patient_insurance(payload, &app_state, req, true, None).await
+}
 
-    let total_pages = (total_items as f64 / limit as f64).ceil() as u64;
-    let has_prev = page > 1;
-    let has_next = page < total_pages;
+pub async fn edit(
+    payload: Multipart,
+    app_state: web::Data<AppState>,
+    path: web::Path<Uuid>,
+    req: HttpRequest,
+) -> Result<ApiResponse, ApiResponse> {
+    let insurance_id = path.into_inner();
 
-    let model = paginator
-        .fetch_page(page.saturating_sub(1))
-        .await
-        .map_err(|err| ApiResponse::new(500, json!({"message": err.to_string()})))?
-        .into_iter()
-        .map(|(patient, ins)| {
-            if let Some(ins) = ins {
-                json!({
-                    "pid": ins.pid,
-                    "provider": ins.provider,
-                    "policy_number": ins.policy_number,
-                    "group_number": ins.group_number,
-                    "plan_type": ins.plan_type,
-                    "coverage_start_date": ins.coverage_start_date,
-                    "coverage_end_date": ins.coverage_end_date,
-                    "is_primary": ins.is_primary,
-                    "patient": {
-                        "pid": patient.pid,
-                        "name": format!("{:?} {:?}", patient.first_name, patient.last_name),
-                    },
-                    "created_at": ins.created_at,
-                })
-            } else {
-                json!(null)
-            }
-        })
-        .collect::<Vec<_>>();
+    edit_patient_insurance(payload, &app_state, req, false, None, insurance_id).await
+}
 
-    Ok(ApiResponse::new(
-        200,
-        json!({
-            "insurances": model,
-            "page": page,
-            "total_pages": total_pages,
-            "total_items": total_items,
-            "has_prev": has_prev,
-            "has_next": has_next,
-            "message": "Patient insurance fetched successfully",
-        }),
-    ))
+pub async fn set_primary(
+    app_state: web::Data<AppState>,
+    path: web::Path<Uuid>,
+) -> Result<ApiResponse, ApiResponse> {
+    let insurance_id = path.into_inner();
+
+    set_primary_patient_insurance(&app_state, insurance_id).await
+}
+
+pub async fn destroy(
+    app_state: web::Data<AppState>,
+    path: web::Path<Uuid>,
+) -> Result<ApiResponse, ApiResponse> {
+    let insurance_id = path.into_inner();
+
+    destroy_patient_insurance(&app_state, insurance_id).await
+}
+
+pub async fn restore(
+    app_state: web::Data<AppState>,
+    path: web::Path<Uuid>,
+) -> Result<ApiResponse, ApiResponse> {
+    let insurance_id = path.into_inner();
+
+    restore_patient_insurance(&app_state, insurance_id).await
+}
+
+pub async fn delete_permanently(
+    app_state: web::Data<AppState>,
+    path: web::Path<Uuid>,
+) -> Result<ApiResponse, ApiResponse> {
+    let insurance_id = path.into_inner();
+
+    delete_permanently_patient_insurance(&app_state, insurance_id).await
 }

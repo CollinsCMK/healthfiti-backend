@@ -69,7 +69,12 @@ pub async fn resend_otp(
     let api = ApiClient::new();
 
     let resend_otp: SuccessResponse = api
-        .call("auth/resend_otp", &req, Some(&*data), Method::POST)
+        .call(
+            "auth/resend_otp",
+            &Some(req.clone()),
+            Some(&*data),
+            Method::POST,
+        )
         .await
         .map_err(|err| {
             log::error!("Resend verification code API error: {}", err);

@@ -108,7 +108,12 @@ pub async fn login_verify(
     let api = ApiClient::new();
 
     let verify_response: LoginVerifyResponse = api
-        .call("auth/login_verify", &req, Some(&*data), Method::POST)
+        .call(
+            "auth/login_verify",
+            &Some(req.clone()),
+            Some(&*data),
+            Method::POST,
+        )
         .await
         .map_err(|err| {
             log::error!("Login verify external API error: {}", err);

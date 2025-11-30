@@ -122,7 +122,12 @@ pub async fn register(
     let api = ApiClient::new();
 
     let register: RegisterResponse = api
-        .call("auth/register", &req, Some(&*data), Method::POST)
+        .call(
+            "auth/register",
+            &Some(req.clone()),
+            Some(&*data),
+            Method::POST,
+        )
         .await
         .map_err(|err| {
             log::error!("Register user API error: {}", err);

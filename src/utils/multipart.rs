@@ -1,12 +1,13 @@
 use std::str::FromStr;
 
 use actix_multipart::Field;
-use actix_web::{HttpRequest, web};
+use actix_web::HttpRequest;
 use aws_sdk_s3::{presigning::PresigningConfig, primitives::ByteStream};
 use chrono::{NaiveDate, NaiveDateTime};
 use futures::TryStreamExt;
 use sea_orm::prelude::Decimal;
 use serde_json::json;
+use uuid::Uuid;
 
 use crate::utils::{
     api_response::ApiResponse, app_state::AppState, jwt::get_logged_in_user_claims,
@@ -14,7 +15,7 @@ use crate::utils::{
 
 pub async fn upload_file(
     req: &HttpRequest,
-    app_state: &web::Data<AppState>,
+    app_state: &AppState,
     file_name: &str,
     content: Vec<u8>,
     content_type: &str,
@@ -43,10 +44,7 @@ pub async fn upload_file(
     Ok(filename)
 }
 
-pub async fn download_file(
-    app_state: &web::Data<AppState>,
-    file_name: &str,
-) -> Result<Vec<u8>, ApiResponse> {
+pub async fn download_file(app_state: &AppState, file_name: &str) -> Result<Vec<u8>, ApiResponse> {
     let response = app_state
         .s3_client
         .get_object()
@@ -66,7 +64,7 @@ pub async fn download_file(
 }
 
 pub async fn get_presigned_url(
-    app_state: &web::Data<AppState>,
+    app_state: &AppState,
     file_name: &str,
     expiry_secs: u64,
 ) -> Result<String, ApiResponse> {
@@ -86,10 +84,7 @@ pub async fn get_presigned_url(
     Ok(presigned_request.uri().to_string())
 }
 
-pub async fn delete_file(
-    app_state: &web::Data<AppState>,
-    file_name: &str,
-) -> Result<(), ApiResponse> {
+pub async fn delete_file(app_state: &AppState, file_name: &str) -> Result<(), ApiResponse> {
     app_state
         .s3_client
         .delete_object()
@@ -181,5 +176,21 @@ pub async fn field_to_byte(field: &mut Field) -> Result<Vec<u8>, ApiResponse> {
 pub async fn field_to_json(field: &mut Field) -> Result<serde_json::Value, ApiResponse> {
     let string_data = field_to_string_internal(field).await?;
     serde_json::from_str(&string_data)
+        .map_err(|err| ApiResponse::new(500, json!({ "message": err.to_string() })))
+}
+
+pub async fn field_to_i32(field: &mut Field) -> Result<i32, ApiResponse> {
+    let data_str = field_to_string_internal(field).await?;
+    data_str
+        .trim()
+        .parse::<i32>()
+        .map_err(|err| ApiResponse::new(500, json!({ "message": err.to_string() })))
+}
+
+pub async fn field_to_uuid(field: &mut Field) -> Result<Uuid, ApiResponse> {
+    let data_str = field_to_string_internal(field).await?;
+    data_str
+        .trim()
+        .parse::<Uuid>()
         .map_err(|err| ApiResponse::new(500, json!({ "message": err.to_string() })))
 }

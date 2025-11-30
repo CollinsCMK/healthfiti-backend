@@ -102,7 +102,12 @@ pub async fn reset_password(
     let api = ApiClient::new();
 
     let reset: SuccessResponse = api
-        .call("auth/reset_password", &req, Some(&*data), Method::POST)
+        .call(
+            "auth/reset_password",
+            &Some(req.clone()),
+            Some(&*data),
+            Method::POST,
+        )
         .await
         .map_err(|err| {
             log::error!("Reset password external API error: {}", err);

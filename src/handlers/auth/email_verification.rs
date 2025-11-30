@@ -67,7 +67,12 @@ pub async fn verify_email(
     let api = ApiClient::new();
 
     let verify_email: EmailResponse = api
-        .call("auth/verify_email", &req, Some(&*data), Method::POST)
+        .call(
+            "auth/verify_email",
+            &Some(req.clone()),
+            Some(&*data),
+            Method::POST,
+        )
         .await
         .map_err(|err| {
             log::error!("Verify email API error: {}", err);

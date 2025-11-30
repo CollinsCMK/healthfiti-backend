@@ -7,5 +7,6 @@ pub mod message_queue;
 pub mod migrate;
 pub mod multipart;
 pub mod pagination;
+pub mod permission;
 pub mod validation;
 pub mod validator_error;

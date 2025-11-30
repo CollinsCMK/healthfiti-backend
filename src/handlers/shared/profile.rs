@@ -57,7 +57,7 @@ pub struct ProfileDTO {
 pub async fn get_profile_data(req: &HttpRequest) -> Result<ProfileDTO, ApiResponse> {
     let api = ApiClient::new();
     let profile: ProfileDTO = api
-        .call("users/me", &req, None::<&()>, Method::GET)
+        .call("users/me", &Some(req.clone()), None::<&()>, Method::GET)
         .await
         .map_err(|err| {
             log::error!("users/me API error: {}", err);
@@ -165,7 +165,12 @@ async fn enable_2fa_totp(req: HttpRequest) -> Result<ApiResponse, ApiResponse> {
     let api = ApiClient::new();
 
     let totp: TotpResponse = api
-        .call("users/me/totp", &req, None::<&()>, Method::POST)
+        .call(
+            "users/me/totp",
+            &Some(req.clone()),
+            None::<&()>,
+            Method::POST,
+        )
         .await
         .map_err(|err| {
             log::error!("users/me/totp API error: {}", err);
@@ -230,7 +235,12 @@ async fn edit_2fa_totp(
     let api = ApiClient::new();
 
     let totp: TotpResponse = api
-        .call("users/me/totp", &req, Some(&data), Method::PATCH)
+        .call(
+            "users/me/totp",
+            &Some(req.clone()),
+            Some(&data),
+            Method::PATCH,
+        )
         .await
         .map_err(|err| {
             log::error!("users/me/totp API error: {}", err);
@@ -282,7 +292,12 @@ async fn verify_totp_data(
     let api = ApiClient::new();
 
     let totp: VerifyTotpResponse = api
-        .call("users/me/verify_totp", &req, Some(&data), Method::POST)
+        .call(
+            "users/me/verify_totp",
+            &Some(req.clone()),
+            Some(&data),
+            Method::POST,
+        )
         .await
         .map_err(|err| {
             log::error!("users/me/verify_totp API error: {}", err);
@@ -346,7 +361,12 @@ async fn regenerate_recovery_codes(
     let api = ApiClient::new();
 
     let totp: VerifyTotpResponse = api
-        .call("users/me/regenerate_codes", &req, Some(&data), Method::POST)
+        .call(
+            "users/me/regenerate_codes",
+            &Some(req.clone()),
+            Some(&data),
+            Method::POST,
+        )
         .await
         .map_err(|err| {
             log::error!("users/me/regenerate_codes API error: {}", err);
@@ -382,7 +402,12 @@ async fn enable_otp(req: HttpRequest) -> Result<ApiResponse, ApiResponse> {
     let api = ApiClient::new();
 
     let otp: SuccessResponse = api
-        .call("users/me/enable_otp", &req, None::<&()>, Method::POST)
+        .call(
+            "users/me/enable_otp",
+            &Some(req.clone()),
+            None::<&()>,
+            Method::POST,
+        )
         .await
         .map_err(|err| {
             log::error!("users/me/enable_otp API error: {}", err);

@@ -1,7 +1,7 @@
 use actix_web::web::{self};
 
 use crate::handlers::user::profile::{
-    emergency_information, health_information, personal_information,
+    emergency_information, health_information, insurance, personal_information
 };
 
 pub fn config(config: &mut web::ServiceConfig) {
@@ -12,6 +12,12 @@ pub fn config(config: &mut web::ServiceConfig) {
             .service(health_information::get_health_information)
             .service(health_information::upsert)
             .service(emergency_information::get_emergency_information)
-            .service(emergency_information::upsert),
+            .service(emergency_information::upsert)
+            .service(insurance::index)
+            .service(insurance::show)
+            .service(insurance::create)
+            .service(insurance::edit)
+            .service(insurance::set_primary)
+            .service(insurance::destroy)
     );
 }

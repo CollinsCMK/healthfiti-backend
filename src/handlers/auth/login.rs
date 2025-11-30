@@ -119,7 +119,12 @@ async fn login(
     });
 
     let login: LoginResponse = api
-        .call("auth/login", &req, Some(&request_json), Method::POST)
+        .call(
+            "auth/login",
+            &Some(req.clone()),
+            Some(&request_json),
+            Method::POST,
+        )
         .await
         .map_err(|err| {
             log::error!("auth/login API error: {}", err);

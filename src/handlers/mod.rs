@@ -1,6 +1,7 @@
 pub mod admin;
 pub mod auth;
 pub mod health;
+pub mod services;
 pub mod shared;
 pub mod tenant;
 pub mod user;

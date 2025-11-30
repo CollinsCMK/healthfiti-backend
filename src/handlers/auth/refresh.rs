@@ -61,7 +61,12 @@ pub async fn refresh(
     let api = ApiClient::new();
 
     let refresh: RefreshResponse = api
-        .call("auth/refresh", &req, Some(&*data), Method::POST)
+        .call(
+            "auth/refresh",
+            &Some(req.clone()),
+            Some(&*data),
+            Method::POST,
+        )
         .await
         .map_err(|err| {
             log::error!("Refresh API error: {}", err);

@@ -265,7 +265,7 @@ pub async fn upsert(
 
     let api = ApiClient::new();
     let _patient_sso: SuccessResponse = api
-        .call(&endpoint, &req, Some(&json_data), Method::PUT)
+        .call(&endpoint, &Some(req.clone()), Some(&json_data), Method::PUT)
         .await
         .map_err(|err| {
             log::error!("Edit user API error: {}", err);

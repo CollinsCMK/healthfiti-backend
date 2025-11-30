@@ -6,8 +6,8 @@ use crate::utils::{api_response::ApiResponse, http_client::ApiClient};
 
 #[derive(Deserialize, Debug, Default)]
 #[serde(default)]
-struct PermissionResponse {
-    message: String,
+pub struct PermissionResponse {
+    pub message: String,
 }
 
 pub async fn seed_permissions() -> Result<ApiResponse, ApiResponse> {
@@ -22,7 +22,47 @@ pub async fn seed_permissions() -> Result<ApiResponse, ApiResponse> {
             "view_all_patient_insurances",
             "Allows the user to view all patient insurance records in the system",
             "Patient Insurances",
-        )
+        ),
+        (
+            "view_patient_insurance",
+            "Allows the user to view a specific patient insurance record",
+            "Patient Insurances",
+        ),
+        (
+            "create_patient_insurance",
+            "Allows the user to create a new patient insurance record",
+            "Patient Insurances",
+        ),
+        (
+            "update_patient_insurance",
+            "Allows the user to update an existing patient insurance record",
+            "Patient Insurances",
+        ),
+        (
+            "update_primary_patient_insurance",
+            "Allows the user to set or update whether a patient insurance record is primary",
+            "Patient Insurances",
+        ),
+        (
+            "delete_patient_insurance",
+            "Permanently deletes a patient insurance record",
+            "Patient Insurances",
+        ),
+        (
+            "view_archived_patient_insurances",
+            "Allows the user to view archived/soft-deleted patient insurance records",
+            "Patient Insurances",
+        ),
+        (
+            "soft_delete_patient_insurance",
+            "Allows the user to soft-delete a patient insurance record",
+            "Patient Insurances",
+        ),
+        (
+            "restore_patient_insurance",
+            "Allows the user to restore a soft-deleted patient insurance record",
+            "Patient Insurances",
+        ),
     ];
 
     // Convert default_permissions to Vec of objects expected by /create API
@@ -41,7 +81,7 @@ pub async fn seed_permissions() -> Result<ApiResponse, ApiResponse> {
 
     log::info!("Calling SSO API: {}/permissions/create", api.base_url);
     log::debug!("Request payload: {:?}", request_json);
-    
+
     let response: PermissionResponse = api
         .call_with_secret("permissions/create", Some(&request_json), Method::POST)
         .await

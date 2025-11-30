@@ -37,15 +37,17 @@ impl ApiClient {
     pub async fn call<T: DeserializeOwned, P: Serialize>(
         &self,
         path: &str,
-        req: &HttpRequest,
+        req: &Option<HttpRequest>,
         payload: Option<&P>,
         method: reqwest::Method,
     ) -> Result<T, reqwest::Error> {
+        let app_name = (utils::constants::APP_NAME).clone();
+
         let user_agent = req
-            .headers()
-            .get("User-Agent")
+            .as_ref()
+            .and_then(|r| r.headers().get("User-Agent"))
             .and_then(|v| v.to_str().ok())
-            .unwrap_or("Unknown")
+            .unwrap_or(&app_name)
             .to_string();
 
         let url = format!("{}{}", self.base_url, path);
@@ -57,8 +59,10 @@ impl ApiClient {
             .header("Client-ID", &self.client_id)
             .header("Client-Secret", &self.client_secret);
 
-        if let Some(token) = get_bearer_token(&req) {
-            request = request.bearer_auth(token);
+        if let Some(r) = req {
+            if let Some(token) = get_bearer_token(r) {
+                request = request.bearer_auth(token);
+            }
         }
 
         if let Some(body) = payload {

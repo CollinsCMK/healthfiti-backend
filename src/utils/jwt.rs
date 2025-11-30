@@ -7,7 +7,7 @@ use uuid::Uuid;
 use crate::{
     db::main::{
         self,
-        migrations::sea_orm::{ColumnTrait, QueryFilter, QuerySelect},
+        migrations::sea_orm::{ColumnTrait, EntityTrait, QueryFilter, QuerySelect},
     },
     utils::{api_response::ApiResponse, app_state::AppState},
 };
@@ -42,14 +42,24 @@ pub fn get_logged_in_user_claims(req: &HttpRequest) -> Result<Claims, ApiRespons
 pub async fn get_patient_id(
     req: &HttpRequest,
     app_state: &web::Data<AppState>,
-) -> Result<i32, ApiResponse> {
+    patient_id: Option<Uuid>,
+) -> Result<(i32, Uuid), ApiResponse> {
     let claims = get_logged_in_user_claims(&req)?;
 
-    let patient_id = main::entities::patients::Entity::find_by_sso_user_id(claims.sub)
-        .filter(main::entities::patients::Column::DeletedAt.is_null())
+    let mut stmt = main::entities::patients::Entity::find()
+        .filter(main::entities::patients::Column::DeletedAt.is_null());
+
+    if let Some(id) = patient_id {
+        stmt = stmt.filter(main::entities::patients::Column::Pid.eq(id));
+    } else {
+        stmt = stmt.filter(main::entities::patients::Column::SsoUserId.eq(claims.sub))
+    };
+
+    let (patient_id, patient_pid) = stmt
         .select_only()
         .column(main::entities::patients::Column::Id)
-        .into_tuple::<i32>()
+        .column(main::entities::patients::Column::Pid)
+        .into_tuple::<(i32, Uuid)>()
         .one(&app_state.main_db)
         .await
         .map_err(|err| {
@@ -58,5 +68,5 @@ pub async fn get_patient_id(
         })?
         .ok_or_else(|| ApiResponse::new(404, json!({ "message": "Patient not found" })))?;
 
-    Ok(patient_id)
+    Ok((patient_id, patient_pid))
 }

@@ -39,7 +39,12 @@ async fn get_user_sessions(req: HttpRequest) -> Result<ApiResponse, ApiResponse>
     let api = ApiClient::new();
 
     let sessions: SessionResponse = api
-        .call("users/me/sessions", &req, None::<&()>, Method::GET)
+        .call(
+            "users/me/sessions",
+            &Some(req.clone()),
+            None::<&()>,
+            Method::GET,
+        )
         .await
         .map_err(|err| {
             log::error!("users/me/sessions API error: {}", err);

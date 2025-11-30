@@ -101,7 +101,7 @@ async fn password_reset_request(
     let password_reset: PasswordResetResponse = api
         .call(
             "auth/password_reset_request",
-            &req,
+            &Some(req.clone()),
             Some(&request_json),
             Method::POST,
         )

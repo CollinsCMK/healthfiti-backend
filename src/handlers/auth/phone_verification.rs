@@ -65,7 +65,12 @@ pub async fn verify_phone(
     let api = ApiClient::new();
 
     let verify_phone: SuccessResponse = api
-        .call("auth/verify_phone", &req, Some(&*data), Method::POST)
+        .call(
+            "auth/verify_phone",
+            &Some(req.clone()),
+            Some(&*data),
+            Method::POST,
+        )
         .await
         .map_err(|err| {
             log::error!("Verify phone number API error: {}", err);
