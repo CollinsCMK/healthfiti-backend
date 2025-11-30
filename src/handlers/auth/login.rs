@@ -7,7 +7,10 @@ use serde_json::{Value, json};
 use uuid::Uuid;
 
 use crate::{
-    db::tenant::{self, ActiveModelTrait, ActiveValue::Set, ColumnTrait, QueryFilter},
+    db::tenant::{
+        self,
+        migrations::sea_orm::{ActiveModelTrait, ActiveValue::Set, ColumnTrait, QueryFilter},
+    },
     utils::{
         api_response::ApiResponse, app_state::AppState, http_client::ApiClient,
         validation::validate_phone_number, validator_error::ValidationError,

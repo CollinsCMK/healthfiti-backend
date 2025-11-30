@@ -8,7 +8,10 @@ use serde_json::json;
 use uuid::Uuid;
 
 use crate::{
-    db::main::{self, ColumnTrait, QueryFilter},
+    db::main::{
+        self,
+        migrations::sea_orm::{ColumnTrait, QueryFilter},
+    },
     handlers::auth::phone_verification::SuccessResponse,
     utils::{
         api_response::ApiResponse, app_state::AppState, http_client::ApiClient,

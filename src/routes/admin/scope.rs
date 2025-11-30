@@ -1,7 +1,9 @@
-use actix_web::web::{self};
+use crate::routes;
+use actix_web::web::{self, ServiceConfig};
 
-use crate::handlers::health::health;
-
-pub fn config(config: &mut web::ServiceConfig) {
-    config.service(web::scope("/admin").service(health));
+pub fn config(config: &mut ServiceConfig) {
+    config.service(
+        web::scope("/admin")
+        .configure(routes::admin::patients::config)
+    );
 }

@@ -10,7 +10,10 @@ use serde_json::json;
 use uuid::Uuid;
 
 use crate::{
-    db::main::{self, ActiveModelTrait, ColumnTrait, QueryFilter, Set},
+    db::main::{
+        self,
+        migrations::sea_orm::{ActiveModelTrait, ColumnTrait, QueryFilter, Set},
+    },
     handlers::{
         auth::phone_verification::SuccessResponse,
         shared::profile::{get_profile_data, get_user_role_ids},

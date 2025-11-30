@@ -1,7 +1,6 @@
-pub use migration_tenant::Migrator;
-pub use migration_tenant::MigratorTrait;
-
-pub use migration_tenant::sea_orm::*;
+pub mod migrations {
+    pub use migration_main::*;
+}
 
 pub mod entities {
     pub use entity_tenant::*;

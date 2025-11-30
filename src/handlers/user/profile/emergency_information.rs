@@ -6,7 +6,10 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 
 use crate::{
-    db::main::{self, ActiveModelTrait, ColumnTrait, QueryFilter, Set},
+    db::main::{
+        self,
+        migrations::sea_orm::{ActiveModelTrait, ColumnTrait, QueryFilter, Set},
+    },
     utils::{
         api_response::ApiResponse, app_state::AppState, jwt::get_logged_in_user_claims,
         validator_error::ValidationError,
