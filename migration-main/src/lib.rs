@@ -9,8 +9,10 @@ mod m20251124_001437_create_tenants_table;
 mod m20251124_002548_create_tenant_features_table;
 mod m20251124_002621_create_tenant_subscriptions_table;
 mod m20251124_125559_create_patient_access_permissions_table;
-mod m20251128_175014_create_patient_insurance_table;
-mod m20251128_180941_create_patient_billing_info_table;
+mod m20251130_221114_create_insurance_providers_table;
+mod m20251130_221614_create_patient_insurance_table;
+mod m20251130_221825_create_insurance_dependents_table;
+mod m20251130_223228_create_payment_methods_table;
 
 pub struct Migrator;
 
@@ -27,8 +29,10 @@ impl MigratorTrait for Migrator {
             Box::new(m20251124_002548_create_tenant_features_table::Migration),
             Box::new(m20251124_002621_create_tenant_subscriptions_table::Migration),
             Box::new(m20251124_125559_create_patient_access_permissions_table::Migration),
-            Box::new(m20251128_175014_create_patient_insurance_table::Migration),
-            Box::new(m20251128_180941_create_patient_billing_info_table::Migration),
+            Box::new(m20251130_221114_create_insurance_providers_table::Migration),
+            Box::new(m20251130_221614_create_patient_insurance_table::Migration),
+            Box::new(m20251130_221825_create_insurance_dependents_table::Migration),
+            Box::new(m20251130_223228_create_payment_methods_table::Migration),
         ]
     }
 }
