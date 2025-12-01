@@ -8,7 +8,9 @@ use crate::{
         migrations::sea_orm::{ColumnTrait, EntityTrait, QueryFilter},
     },
     handlers::services::patient_insurance::{
-        create_patient_insurance, delete_permanently_patient_insurance, destroy_patient_insurance, edit_patient_insurance, fetch_patient_insurance, fetch_patient_insurances, restore_patient_insurance, set_primary_patient_insurance
+        create_patient_insurance, delete_permanently_patient_insurance, destroy_patient_insurance,
+        edit_patient_insurance, fetch_patient_insurance, fetch_patient_insurances,
+        restore_patient_insurance, set_primary_patient_insurance,
     },
     utils::{
         api_response::ApiResponse, app_state::AppState, pagination::PaginationParams,

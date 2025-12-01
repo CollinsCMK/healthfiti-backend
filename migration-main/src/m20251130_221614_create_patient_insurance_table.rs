@@ -1,5 +1,5 @@
-use sea_orm_migration::{prelude::*, schema::*};
 use sea_orm_migration::prelude::extension::postgres::Type;
+use sea_orm_migration::{prelude::*, schema::*};
 
 #[derive(DeriveMigrationName)]
 pub struct Migration;
@@ -51,15 +51,18 @@ impl MigrationTrait for Migration {
                     .col(decimal_null(PatientInsurance::CoverageLimit))
                     .col(date_null(PatientInsurance::EffectiveDate))
                     .col(date_null(PatientInsurance::ExpiryDate))
-                    .col(enumeration(
-                        PatientInsurance::Status,
-                        Alias::new("patient_insurance_status"),
-                        vec![
-                            Alias::new("active"),
-                            Alias::new("inactive"),
-                            Alias::new("pending"),
-                        ],
-                    ).default("active"))
+                    .col(
+                        enumeration(
+                            PatientInsurance::Status,
+                            Alias::new("patient_insurance_status"),
+                            vec![
+                                Alias::new("active"),
+                                Alias::new("inactive"),
+                                Alias::new("pending"),
+                            ],
+                        )
+                        .default("active"),
+                    )
                     .col(boolean(PatientInsurance::Verified).default(false))
                     .col(timestamp_null(PatientInsurance::VerifiedAt))
                     .col(timestamp_null(PatientInsurance::DeletedAt))
@@ -82,7 +85,11 @@ impl MigrationTrait for Migration {
             .await?;
 
         manager
-            .drop_type(Type::drop().name(Alias::new("patient_insurance_status")).to_owned())
+            .drop_type(
+                Type::drop()
+                    .name(Alias::new("patient_insurance_status"))
+                    .to_owned(),
+            )
             .await
     }
 }

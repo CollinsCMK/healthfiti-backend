@@ -1,5 +1,5 @@
-use sea_orm_migration::{prelude::*, schema::*};
 use sea_orm_migration::prelude::extension::postgres::Type;
+use sea_orm_migration::{prelude::*, schema::*};
 
 #[derive(DeriveMigrationName)]
 pub struct Migration;
@@ -40,16 +40,19 @@ impl MigrationTrait for Migration {
                             .on_delete(ForeignKeyAction::Cascade),
                     )
                     .col(string(InsuranceDependents::Name))
-                    .col(enumeration(
-                        InsuranceDependents::Relationship,
-                        Alias::new("insurance_dependent_relationship"),
-                        vec![
-                            Alias::new("spouse"),
-                            Alias::new("child"),
-                            Alias::new("parent"),
-                            Alias::new("other"),
-                        ],
-                    ).null())
+                    .col(
+                        enumeration(
+                            InsuranceDependents::Relationship,
+                            Alias::new("insurance_dependent_relationship"),
+                            vec![
+                                Alias::new("spouse"),
+                                Alias::new("child"),
+                                Alias::new("parent"),
+                                Alias::new("other"),
+                            ],
+                        )
+                        .null(),
+                    )
                     .col(date_null(InsuranceDependents::DateOfBirth))
                     .col(text_null(InsuranceDependents::CoverageDetails))
                     .col(timestamp_null(InsuranceDependents::DeletedAt))

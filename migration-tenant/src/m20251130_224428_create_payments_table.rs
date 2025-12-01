@@ -7,10 +7,11 @@ pub struct Migration;
 #[async_trait::async_trait]
 impl MigrationTrait for Migration {
     async fn up(&self, manager: &SchemaManager) -> Result<(), DbErr> {
+        // Create enum for payment method
         manager
             .create_type(
                 Type::create()
-                    .as_enum(Alias::new("payment_method_type"))
+                    .as_enum(Alias::new("payment_method_enum"))
                     .values([
                         Alias::new("mpesa"),
                         Alias::new("airtel"),
@@ -25,24 +26,33 @@ impl MigrationTrait for Migration {
         manager
             .create_table(
                 Table::create()
-                    .table(PaymentMethods::Table)
+                    .table(Payments::Table)
                     .if_not_exists()
-                    .col(pk_uuid(PaymentMethods::Id))
+                    .col(pk_uuid(Payments::Id))
                     .col(
-                        uuid_uniq(PaymentMethods::Pid)
+                        uuid_uniq(Payments::Pid)
                             .default(SimpleExpr::Custom("gen_random_uuid()".into())),
                     )
-                    .col(integer(PaymentMethods::PatientId))
+                    .col(uuid(Payments::InvoiceId))
                     .foreign_key(
                         ForeignKey::create()
-                            .name("fk-payment_methods-patient_id")
-                            .from(PaymentMethods::Table, PaymentMethods::PatientId)
-                            .to(Patients::Table, Patients::Id)
+                            .name("fk-payments-invoice_id")
+                            .from(Payments::Table, Payments::InvoiceId)
+                            .to(BillingInvoices::Table, BillingInvoices::Id)
                             .on_delete(ForeignKeyAction::Cascade),
                     )
+                    .col(uuid_null(Payments::PaymentMethodId))
+                    .foreign_key(
+                        ForeignKey::create()
+                            .name("fk-payments-payment_method_id")
+                            .from(Payments::Table, Payments::PaymentMethodId)
+                            .to(PaymentMethods::Table, PaymentMethods::Id)
+                            .on_delete(ForeignKeyAction::SetNull),
+                    )
+                    .col(decimal(Payments::Amount))
                     .col(enumeration(
-                        PaymentMethods::Type,
-                        Alias::new("payment_method_type"),
+                        Payments::Method,
+                        Alias::new("payment_method_enum"),
                         vec![
                             Alias::new("mpesa"),
                             Alias::new("airtel"),
@@ -51,15 +61,19 @@ impl MigrationTrait for Migration {
                             Alias::new("cash"),
                         ],
                     ))
-                    .col(json_binary(PaymentMethods::Details))
-                    .col(boolean(PaymentMethods::IsDefault).default(false))
-                    .col(timestamp_null(PaymentMethods::DeletedAt))
+                    .col(string_null(Payments::MpesaReceipt))
+                    .col(string_null(Payments::TransactionReference))
                     .col(
-                        timestamp(PaymentMethods::CreatedAt)
+                        timestamp(Payments::PaidAt)
+                            .default(SimpleExpr::Keyword(Keyword::CurrentTimestamp)),
+                    )
+                    .col(timestamp_null(Payments::DeletedAt))
+                    .col(
+                        timestamp(Payments::CreatedAt)
                             .default(SimpleExpr::Keyword(Keyword::CurrentTimestamp)),
                     )
                     .col(
-                        timestamp(PaymentMethods::UpdatedAt)
+                        timestamp(Payments::UpdatedAt)
                             .default(SimpleExpr::Keyword(Keyword::CurrentTimestamp)),
                     )
                     .to_owned(),
@@ -69,13 +83,13 @@ impl MigrationTrait for Migration {
 
     async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
         manager
-            .drop_table(Table::drop().table(PaymentMethods::Table).to_owned())
+            .drop_table(Table::drop().table(Payments::Table).to_owned())
             .await?;
 
         manager
             .drop_type(
                 Type::drop()
-                    .name(Alias::new("payment_method_type"))
+                    .name(Alias::new("payment_method_enum"))
                     .to_owned(),
             )
             .await
@@ -83,21 +97,30 @@ impl MigrationTrait for Migration {
 }
 
 #[derive(DeriveIden)]
-enum PaymentMethods {
+enum Payments {
     Table,
     Id,
     Pid,
-    PatientId,
-    Type,
-    Details,
-    IsDefault,
+    InvoiceId,
+    PaymentMethodId,
+    Amount,
+    Method,
+    MpesaReceipt,
+    TransactionReference,
+    PaidAt,
     DeletedAt,
     CreatedAt,
     UpdatedAt,
 }
 
 #[derive(DeriveIden)]
-enum Patients {
+enum BillingInvoices {
+    Table,
+    Id,
+}
+
+#[derive(DeriveIden)]
+enum PaymentMethods {
     Table,
     Id,
 }
