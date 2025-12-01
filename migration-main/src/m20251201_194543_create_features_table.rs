@@ -16,8 +16,15 @@ impl MigrationTrait for Migration {
                         uuid_uniq(Features::Pid)
                             .default(SimpleExpr::Custom("gen_random_uuid()".into())),
                     )
-                    .col(string_uniq(Features::Name))
+                    .col(string_uniq(Features::Code))
+                    .col(string(Features::Name))
                     .col(text_null(Features::Description))
+                    .col(boolean(Features::IsPremium).default(false))
+                    .col(boolean(Features::RequiresSetup).default(false))
+                    .col(text_null(Features::SetupInstructions))
+                    .col(json_binary_null(Features::Dependencies))
+                    .col(boolean(Features::IsActive).default(false))
+                    .col(integer(Features::DisplayOrder).default(0))
                     .col(
                         timestamp(Features::CreatedAt)
                             .default(SimpleExpr::Keyword(Keyword::CurrentTimestamp)),
@@ -29,7 +36,27 @@ impl MigrationTrait for Migration {
                     .col(timestamp_null(Features::DeletedAt))
                     .to_owned(),
             )
-            .await
+            .await?;
+
+            let _idx_features_code = Index::create()
+                .name("idx_features_code")
+                .table(Features::Table)
+                .col(Features::Code)
+                .to_owned();
+
+            let _idx_features_is_premium = Index::create()
+                .name("idx_features_is_premium")
+                .table(Features::Table)
+                .col(Features::IsPremium)
+                .to_owned();
+
+            let _idx_features_is_active = Index::create()
+                .name("idx_features_is_active")
+                .table(Features::Table)
+                .col(Features::IsActive)
+                .to_owned();
+
+        Ok(())
     }
 
     async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
@@ -44,8 +71,15 @@ enum Features {
     Table,
     Id,
     Pid,
+    Code,
     Name,
     Description,
+    IsPremium,
+    RequiresSetup,
+    SetupInstructions,
+    Dependencies,
+    IsActive,
+    DisplayOrder,
     CreatedAt,
     UpdatedAt,
     DeletedAt,

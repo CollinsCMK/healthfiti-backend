@@ -5,35 +5,26 @@ use serde::{Deserialize, Serialize};
 
 #[sea_orm::model]
 #[derive(Clone, Debug, PartialEq, Eq, DeriveEntityModel, Serialize, Deserialize)]
-#[sea_orm(table_name = "features")]
+#[sea_orm(table_name = "feature_flags")]
 pub struct Model {
     #[sea_orm(primary_key)]
     pub id: i32,
     #[sea_orm(unique)]
     pub pid: Uuid,
     #[sea_orm(unique)]
-    pub code: String,
-    #[sea_orm(unique)]
-    pub name: String,
+    pub flag_name: String,
     #[sea_orm(column_type = "Text", nullable)]
     pub description: Option<String>,
-    pub is_premium: bool,
-    pub requires_setup: bool,
-    #[sea_orm(column_type = "Text", nullable)]
-    pub setup_instructions: Option<String>,
+    pub is_enabled_globally: bool,
+    pub rollout_percentage: i32,
     #[sea_orm(column_type = "JsonBinary", nullable)]
-    pub dependencies: Option<Json>,
-    pub is_active: bool,
-    pub display_order: i32,
+    pub target_tiers: Option<Json>,
+    #[sea_orm(column_type = "JsonBinary", nullable)]
+    pub target_tenants: Option<Json>,
+    pub expires_at: Option<DateTime>,
     pub created_at: DateTime,
     pub updated_at: DateTime,
     pub deleted_at: Option<DateTime>,
-    #[sea_orm(has_many)]
-    pub feature_usage_logs: HasMany<super::feature_usage_logs::Entity>,
-    #[sea_orm(has_many)]
-    pub subscription_plan_features: HasMany<super::subscription_plan_features::Entity>,
-    #[sea_orm(has_many)]
-    pub tenant_features: HasMany<super::tenant_features::Entity>,
 }
 
 impl ActiveModelBehavior for ActiveModel {}

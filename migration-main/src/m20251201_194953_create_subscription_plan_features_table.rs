@@ -16,13 +16,13 @@ impl MigrationTrait for Migration {
                         uuid_uniq(SubscriptionPlanFeatures::Pid)
                             .default(SimpleExpr::Custom("gen_random_uuid()".into())),
                     )
-                    .col(integer(SubscriptionPlanFeatures::PlanId))
+                    .col(integer(SubscriptionPlanFeatures::SubscriptionPlanId))
                     .foreign_key(
                         ForeignKey::create()
-                            .name("fk-subscription_plan_features-plan_id")
+                            .name("fk-subscription_plan_features-subscription_plan_id")
                             .from(
                                 SubscriptionPlanFeatures::Table,
-                                SubscriptionPlanFeatures::PlanId,
+                                SubscriptionPlanFeatures::SubscriptionPlanId,
                             )
                             .to(SubscriptionPlans::Table, SubscriptionPlans::Id)
                             .on_delete(ForeignKeyAction::Cascade),
@@ -33,7 +33,7 @@ impl MigrationTrait for Migration {
                             .name("fk-subscription_plan_features-feature_id")
                             .from(
                                 SubscriptionPlanFeatures::Table,
-                                SubscriptionPlanFeatures::PlanId,
+                                SubscriptionPlanFeatures::FeatureId,
                             )
                             .to(Features::Table, Features::Id)
                             .on_delete(ForeignKeyAction::Cascade),
@@ -50,7 +50,29 @@ impl MigrationTrait for Migration {
                     .col(timestamp_null(SubscriptionPlanFeatures::DeletedAt))
                     .to_owned(),
             )
-            .await
+            .await?;
+        
+        let _idx_uniq_subscription_plan_feature = Index::create()
+            .name("uniq_subscription_plan_feature")
+            .table(SubscriptionPlanFeatures::Table)
+            .col(SubscriptionPlanFeatures::SubscriptionPlanId)
+            .col(SubscriptionPlanFeatures::FeatureId)
+            .unique()
+            .to_owned();
+
+        let _idx_subscription_plan_id = Index::create()
+            .name("idx_subscription_plan_features_subscription_plan_id")
+            .table(SubscriptionPlanFeatures::Table)
+            .col(SubscriptionPlanFeatures::SubscriptionPlanId)
+            .to_owned();
+
+        let _idx_feature_id = Index::create()
+            .name("idx_subscription_plan_features_feature_id")
+            .table(SubscriptionPlanFeatures::Table)
+            .col(SubscriptionPlanFeatures::FeatureId)
+            .to_owned();
+
+        Ok(())
     }
 
     async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
@@ -69,7 +91,7 @@ enum SubscriptionPlanFeatures {
     Table,
     Id,
     Pid,
-    PlanId,
+    SubscriptionPlanId,
     FeatureId,
     IsEnabled,
     CreatedAt,

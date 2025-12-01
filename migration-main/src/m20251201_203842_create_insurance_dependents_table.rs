@@ -15,6 +15,7 @@ impl MigrationTrait for Migration {
                         Alias::new("spouse"),
                         Alias::new("child"),
                         Alias::new("parent"),
+                        Alias::new("dependent"),
                         Alias::new("other"),
                     ])
                     .to_owned(),
@@ -39,7 +40,14 @@ impl MigrationTrait for Migration {
                             .to(PatientInsurance::Table, PatientInsurance::Id)
                             .on_delete(ForeignKeyAction::Cascade),
                     )
-                    .col(string(InsuranceDependents::Name))
+                    .col(integer(InsuranceDependents::DependentPatientId))
+                    .foreign_key(
+                        ForeignKey::create()
+                            .name("fk-insurance_dependents-dependent_patient_id")
+                            .from(InsuranceDependents::Table, InsuranceDependents::DependentPatientId)
+                            .to(Patients::Table, Patients::Id)
+                            .on_delete(ForeignKeyAction::Cascade),
+                    )
                     .col(
                         enumeration(
                             InsuranceDependents::Relationship,
@@ -48,13 +56,14 @@ impl MigrationTrait for Migration {
                                 Alias::new("spouse"),
                                 Alias::new("child"),
                                 Alias::new("parent"),
+                                Alias::new("dependent"),
                                 Alias::new("other"),
                             ],
                         )
                         .null(),
                     )
-                    .col(date_null(InsuranceDependents::DateOfBirth))
                     .col(text_null(InsuranceDependents::CoverageDetails))
+                    .col(boolean(InsuranceDependents::IsActive).default(true))
                     .col(timestamp_null(InsuranceDependents::DeletedAt))
                     .col(
                         timestamp(InsuranceDependents::CreatedAt)
@@ -66,7 +75,35 @@ impl MigrationTrait for Migration {
                     )
                     .to_owned(),
             )
-            .await
+            .await?;
+
+        let _idx_uniq_insurance_dependent = Index::create()
+            .name("idx_uniq_insurance_dependent")
+            .table(InsuranceDependents::Table)
+            .col(InsuranceDependents::InsuranceId)
+            .col(InsuranceDependents::DependentPatientId)
+            .unique()
+            .to_owned();
+
+        let _idx_insurance = Index::create()
+            .name("idx_insurance")
+            .table(InsuranceDependents::Table)
+            .col(InsuranceDependents::InsuranceId)
+            .to_owned();
+
+        let _idx_insurance_dependent_patient = Index::create()
+            .name("idx_insurance_dependent_patient")
+            .table(InsuranceDependents::Table)
+            .col(InsuranceDependents::DependentPatientId)
+            .to_owned();
+
+        let _idx_insurance_is_active = Index::create()
+            .name("idx_insurance_is_active")
+            .table(InsuranceDependents::Table)
+            .col(InsuranceDependents::IsActive)
+            .to_owned();
+
+        Ok(())
     }
 
     async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
@@ -90,10 +127,10 @@ enum InsuranceDependents {
     Id,
     Pid,
     InsuranceId,
-    Name,
+    DependentPatientId,
     Relationship,
-    DateOfBirth,
     CoverageDetails,
+    IsActive,
     DeletedAt,
     CreatedAt,
     UpdatedAt,
@@ -101,6 +138,12 @@ enum InsuranceDependents {
 
 #[derive(DeriveIden)]
 enum PatientInsurance {
+    Table,
+    Id,
+}
+
+#[derive(DeriveIden)]
+enum Patients {
     Table,
     Id,
 }

@@ -5,21 +5,23 @@ use serde::{Deserialize, Serialize};
 
 #[sea_orm::model]
 #[derive(Clone, Debug, PartialEq, Eq, DeriveEntityModel, Serialize, Deserialize)]
-#[sea_orm(table_name = "subscription_plan_features")]
+#[sea_orm(table_name = "feature_usage_logs")]
 pub struct Model {
     #[sea_orm(primary_key)]
     pub id: i32,
     #[sea_orm(unique)]
     pub pid: Uuid,
-    pub subscription_plan_id: i32,
+    pub tenant_id: i32,
     pub feature_id: i32,
-    pub is_enabled: bool,
+    pub usage_type: String,
+    pub quantity: i32,
+    pub metadata: Option<Json>,
     pub created_at: DateTime,
     pub updated_at: DateTime,
     pub deleted_at: Option<DateTime>,
     #[sea_orm(
         belongs_to,
-        from = "plan_id",
+        from = "feature_id",
         to = "id",
         on_update = "NoAction",
         on_delete = "Cascade"
@@ -27,12 +29,12 @@ pub struct Model {
     pub features: HasOne<super::features::Entity>,
     #[sea_orm(
         belongs_to,
-        from = "plan_id",
+        from = "tenant_id",
         to = "id",
         on_update = "NoAction",
         on_delete = "Cascade"
     )]
-    pub subscription_plans: HasOne<super::subscription_plans::Entity>,
+    pub tenants: HasOne<super::tenants::Entity>,
 }
 
 impl ActiveModelBehavior for ActiveModel {}

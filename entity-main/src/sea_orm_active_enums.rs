@@ -4,6 +4,44 @@ use sea_orm::entity::prelude::*;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Eq, EnumIter, DeriveActiveEnum, Serialize, Deserialize)]
+#[sea_orm(rs_type = "String", db_type = "Enum", enum_name = "aggregation_period")]
+pub enum AggregationPeriod {
+    #[sea_orm(string_value = "hourly")]
+    Hourly,
+    #[sea_orm(string_value = "daily")]
+    Daily,
+    #[sea_orm(string_value = "monthly")]
+    Monthly,
+}
+#[derive(Debug, Clone, PartialEq, Eq, EnumIter, DeriveActiveEnum, Serialize, Deserialize)]
+#[sea_orm(rs_type = "String", db_type = "Enum", enum_name = "billing_cycle")]
+pub enum BillingCycle {
+    #[sea_orm(string_value = "weekly")]
+    Weekly,
+    #[sea_orm(string_value = "monthly")]
+    Monthly,
+    #[sea_orm(string_value = "quartely")]
+    Quartely,
+    #[sea_orm(string_value = "yearly")]
+    Yearly,
+    #[sea_orm(string_value = "custom")]
+    Custom,
+}
+#[derive(Debug, Clone, PartialEq, Eq, EnumIter, DeriveActiveEnum, Serialize, Deserialize)]
+#[sea_orm(rs_type = "String", db_type = "Enum", enum_name = "billing_item_type")]
+pub enum BillingItemType {
+    #[sea_orm(string_value = "subscription_fee")]
+    SubscriptionFee,
+    #[sea_orm(string_value = "overage")]
+    Overage,
+    #[sea_orm(string_value = "addon")]
+    Addon,
+    #[sea_orm(string_value = "support")]
+    Support,
+    #[sea_orm(string_value = "custom")]
+    Custom,
+}
+#[derive(Debug, Clone, PartialEq, Eq, EnumIter, DeriveActiveEnum, Serialize, Deserialize)]
 #[sea_orm(rs_type = "String", db_type = "Enum", enum_name = "gender")]
 pub enum Gender {
     #[sea_orm(string_value = "male")]
@@ -12,66 +50,130 @@ pub enum Gender {
     Female,
     #[sea_orm(string_value = "other")]
     Other,
+    #[sea_orm(string_value = "prefer_not_to_say")]
+    PreferNotToSay,
 }
 #[derive(Debug, Clone, PartialEq, Eq, EnumIter, DeriveActiveEnum, Serialize, Deserialize)]
 #[sea_orm(
     rs_type = "String",
     db_type = "Enum",
-    enum_name = "patient_billing_cycle"
+    enum_name = "insurance_dependent_relationship"
 )]
-pub enum PatientBillingCycle {
-    #[sea_orm(string_value = "weekly")]
-    Weekly,
-    #[sea_orm(string_value = "monthly")]
-    Monthly,
-    #[sea_orm(string_value = "quarterly")]
-    Quarterly,
-    #[sea_orm(string_value = "yearly")]
-    Yearly,
+pub enum InsuranceDependentRelationship {
+    #[sea_orm(string_value = "spouse")]
+    Spouse,
+    #[sea_orm(string_value = "child")]
+    Child,
+    #[sea_orm(string_value = "parent")]
+    Parent,
+    #[sea_orm(string_value = "dependent")]
+    Dependent,
+    #[sea_orm(string_value = "other")]
+    Other,
+}
+#[derive(Debug, Clone, PartialEq, Eq, EnumIter, DeriveActiveEnum, Serialize, Deserialize)]
+#[sea_orm(rs_type = "String", db_type = "Enum", enum_name = "payment_method")]
+pub enum PaymentMethod {
+    #[sea_orm(string_value = "card")]
+    Card,
+    #[sea_orm(string_value = "mpesa")]
+    Mpesa,
+    #[sea_orm(string_value = "paypal")]
+    Paypal,
+    #[sea_orm(string_value = "cash")]
+    Cash,
+}
+#[derive(Debug, Clone, PartialEq, Eq, EnumIter, DeriveActiveEnum, Serialize, Deserialize)]
+#[sea_orm(rs_type = "String", db_type = "Enum", enum_name = "payment_status")]
+pub enum PaymentStatus {
+    #[sea_orm(string_value = "pending")]
+    Pending,
+    #[sea_orm(string_value = "succeeded")]
+    Succeeded,
+    #[sea_orm(string_value = "failed")]
+    Failed,
+    #[sea_orm(string_value = "refunded")]
+    Refunded,
 }
 #[derive(Debug, Clone, PartialEq, Eq, EnumIter, DeriveActiveEnum, Serialize, Deserialize)]
 #[sea_orm(
     rs_type = "String",
     db_type = "Enum",
-    enum_name = "patient_permissions_access_level"
+    enum_name = "policyholder_relationship"
 )]
-pub enum PatientPermissionsAccessLevel {
-    #[sea_orm(string_value = "read")]
-    Read,
-    #[sea_orm(string_value = "write")]
-    Write,
-    #[sea_orm(string_value = "full")]
-    Full,
+pub enum PolicyholderRelationship {
+    #[sea_orm(string_value = "your_self")]
+    YourSelf,
+    #[sea_orm(string_value = "spouse")]
+    Spouse,
+    #[sea_orm(string_value = "parent")]
+    Parent,
+    #[sea_orm(string_value = "child")]
+    Child,
+    #[sea_orm(string_value = "other")]
+    Other,
 }
 #[derive(Debug, Clone, PartialEq, Eq, EnumIter, DeriveActiveEnum, Serialize, Deserialize)]
 #[sea_orm(
     rs_type = "String",
     db_type = "Enum",
-    enum_name = "subscription_plans_billing_cycle"
+    enum_name = "subscription_status"
 )]
-pub enum SubscriptionPlansBillingCycle {
-    #[sea_orm(string_value = "weekly")]
-    Weekly,
-    #[sea_orm(string_value = "monthly")]
-    Monthly,
-    #[sea_orm(string_value = "quarterly")]
-    Quarterly,
-    #[sea_orm(string_value = "yearly")]
-    Yearly,
-}
-#[derive(Debug, Clone, PartialEq, Eq, EnumIter, DeriveActiveEnum, Serialize, Deserialize)]
-#[sea_orm(
-    rs_type = "String",
-    db_type = "Enum",
-    enum_name = "tenant_subscriptions_status"
-)]
-pub enum TenantSubscriptionsStatus {
+pub enum SubscriptionStatus {
+    #[sea_orm(string_value = "trial")]
+    Trial,
     #[sea_orm(string_value = "active")]
     Active,
-    #[sea_orm(string_value = "cancelled")]
-    Cancelled,
     #[sea_orm(string_value = "past_due")]
     PastDue,
-    #[sea_orm(string_value = "unpaid")]
-    Unpaid,
+    #[sea_orm(string_value = "cancelled")]
+    Cancelled,
+    #[sea_orm(string_value = "expired")]
+    Expired,
+}
+#[derive(Debug, Clone, PartialEq, Eq, EnumIter, DeriveActiveEnum, Serialize, Deserialize)]
+#[sea_orm(rs_type = "String", db_type = "Enum", enum_name = "subscription_tier")]
+pub enum SubscriptionTier {
+    #[sea_orm(string_value = "basic")]
+    Basic,
+    #[sea_orm(string_value = "professional")]
+    Professional,
+    #[sea_orm(string_value = "enterprise")]
+    Enterprise,
+    #[sea_orm(string_value = "custom")]
+    Custom,
+}
+#[derive(Debug, Clone, PartialEq, Eq, EnumIter, DeriveActiveEnum, Serialize, Deserialize)]
+#[sea_orm(
+    rs_type = "String",
+    db_type = "Enum",
+    enum_name = "tenant_subscription_status"
+)]
+pub enum TenantSubscriptionStatus {
+    #[sea_orm(string_value = "trial")]
+    Trial,
+    #[sea_orm(string_value = "active")]
+    Active,
+    #[sea_orm(string_value = "suspended")]
+    Suspended,
+    #[sea_orm(string_value = "cancelled")]
+    Cancelled,
+    #[sea_orm(string_value = "expired")]
+    Expired,
+}
+#[derive(Debug, Clone, PartialEq, Eq, EnumIter, DeriveActiveEnum, Serialize, Deserialize)]
+#[sea_orm(
+    rs_type = "String",
+    db_type = "Enum",
+    enum_name = "verification_status"
+)]
+pub enum VerificationStatus {
+    #[sea_orm(string_value = "pending")]
+    Pending,
+    #[sea_orm(string_value = "verified")]
+    Verified,
+    #[sea_orm(string_value = "invalid")]
+    Invalid,
+    #[sea_orm(string_value = "expired")]
+    Expired,
 }

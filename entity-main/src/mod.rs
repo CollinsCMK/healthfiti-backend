@@ -2,14 +2,20 @@
 
 pub mod prelude;
 
+pub mod billing_line_items;
+pub mod feature_flags;
+pub mod feature_usage_logs;
 pub mod features;
-pub mod patient_access_permissions;
-pub mod patient_billing;
+pub mod global_system_logs;
+pub mod insurance_dependents;
+pub mod insurance_providers;
 pub mod patient_insurance;
 pub mod patients;
+pub mod payment_transactions;
 pub mod sea_orm_active_enums;
 pub mod subscription_plan_features;
 pub mod subscription_plans;
+pub mod subscriptions;
 pub mod tenant_features;
-pub mod tenant_subscriptions;
 pub mod tenants;
+pub mod usage_metrics;

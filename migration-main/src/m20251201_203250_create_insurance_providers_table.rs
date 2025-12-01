@@ -11,7 +11,7 @@ impl MigrationTrait for Migration {
                 Table::create()
                     .table(InsuranceProviders::Table)
                     .if_not_exists()
-                    .col(pk_uuid(InsuranceProviders::Id))
+                    .col(pk_auto(InsuranceProviders::Id))
                     .col(
                         uuid_uniq(InsuranceProviders::Pid)
                             .default(SimpleExpr::Custom("gen_random_uuid()".into())),
@@ -21,6 +21,11 @@ impl MigrationTrait for Migration {
                     .col(string_null(InsuranceProviders::CountryCode))
                     .col(string_null(InsuranceProviders::PhoneNumber))
                     .col(string_null(InsuranceProviders::Website))
+                    .col(text_null(InsuranceProviders::Address))
+                    .col(text_null(InsuranceProviders::ApiEndpoint))
+                    .col(json_binary_null(InsuranceProviders::ApiCredentials))
+                    .col(json_binary_null(InsuranceProviders::SupportedPlans))
+                    .col(string_null(InsuranceProviders::LogoUrl))
                     .col(timestamp_null(InsuranceProviders::DeletedAt))
                     .col(
                         timestamp(InsuranceProviders::CreatedAt)
@@ -62,6 +67,11 @@ enum InsuranceProviders {
     CountryCode,
     PhoneNumber,
     Website,
+    Address,
+    ApiEndpoint,
+    ApiCredentials,
+    SupportedPlans,
+    LogoUrl,
     DeletedAt,
     CreatedAt,
     UpdatedAt,

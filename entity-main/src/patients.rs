@@ -17,6 +17,7 @@ pub struct Model {
     pub first_name: Option<String>,
     pub last_name: Option<String>,
     pub middle_name: Option<String>,
+    pub preferred_language: String,
     #[sea_orm(unique)]
     pub photo_url: Option<String>,
     pub dob: Option<Date>,
@@ -46,9 +47,7 @@ pub struct Model {
     pub created_at: DateTime,
     pub updated_at: DateTime,
     #[sea_orm(has_many)]
-    pub patient_access_permissions: HasMany<super::patient_access_permissions::Entity>,
-    #[sea_orm(has_one)]
-    pub patient_billing: HasOne<super::patient_billing::Entity>,
+    pub insurance_dependents: HasMany<super::insurance_dependents::Entity>,
     #[sea_orm(has_many)]
     pub patient_insurances: HasMany<super::patient_insurance::Entity>,
 }

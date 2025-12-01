@@ -44,7 +44,43 @@ impl MigrationTrait for Migration {
                     .col(timestamp_null(TenantFeatures::DeletedAt))
                     .to_owned(),
             )
-            .await
+            .await?;
+
+            let _uniq_tenant_feature = Index::create()
+                .name("uniq_tenant_feature")
+                .table(TenantFeatures::Table)
+                .col(TenantFeatures::TenantId)
+                .col(TenantFeatures::FeatureId)
+                .unique()
+                .to_owned();
+            
+            let _idx_tenant_features_tenant_id = Index::create()
+                .name("idx_tenant_features_tenant_id")
+                .table(TenantFeatures::Table)
+                .col(TenantFeatures::TenantId)
+                .to_owned();
+            
+            let _idx_tenant_features_feature_id = Index::create()
+                .name("idx_tenant_features_feature_id")
+                .table(TenantFeatures::Table)
+                .col(TenantFeatures::FeatureId)
+                .to_owned();
+            
+            let _idx_tenant_features_is_enabled = Index::create()
+                .name("idx_tenant_features_is_enabled")
+                .table(TenantFeatures::Table)
+                .col(TenantFeatures::IsEnabled)
+                .to_owned();
+            
+            let _idx_composite = Index::create()
+                .name("idx_tenant_features_tenant_feature_enabled")
+                .table(TenantFeatures::Table)
+                .col(TenantFeatures::TenantId)
+                .col(TenantFeatures::FeatureId)
+                .col(TenantFeatures::IsEnabled)
+                .to_owned();
+            
+            Ok(())
     }
 
     async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {

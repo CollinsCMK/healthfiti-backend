@@ -5,34 +5,34 @@ use serde::{Deserialize, Serialize};
 
 #[sea_orm::model]
 #[derive(Clone, Debug, PartialEq, Eq, DeriveEntityModel, Serialize, Deserialize)]
-#[sea_orm(table_name = "subscription_plan_features")]
+#[sea_orm(table_name = "global_system_logs")]
 pub struct Model {
     #[sea_orm(primary_key)]
     pub id: i32,
     #[sea_orm(unique)]
     pub pid: Uuid,
-    pub subscription_plan_id: i32,
-    pub feature_id: i32,
-    pub is_enabled: bool,
+    pub event_type: String,
+    #[sea_orm(column_type = "Text")]
+    pub message: String,
+    #[sea_orm(unique)]
+    pub sso_user_id: Option<Uuid>,
+    pub tenant_id: Option<i32>,
+    pub source: String,
+    pub ip_address: String,
+    pub status_code: i32,
+    pub request_url: String,
+    pub method: Option<String>,
+    pub deleted_at: Option<DateTime>,
     pub created_at: DateTime,
     pub updated_at: DateTime,
-    pub deleted_at: Option<DateTime>,
     #[sea_orm(
         belongs_to,
-        from = "plan_id",
+        from = "tenant_id",
         to = "id",
         on_update = "NoAction",
-        on_delete = "Cascade"
+        on_delete = "SetNull"
     )]
-    pub features: HasOne<super::features::Entity>,
-    #[sea_orm(
-        belongs_to,
-        from = "plan_id",
-        to = "id",
-        on_update = "NoAction",
-        on_delete = "Cascade"
-    )]
-    pub subscription_plans: HasOne<super::subscription_plans::Entity>,
+    pub tenants: HasOne<super::tenants::Entity>,
 }
 
 impl ActiveModelBehavior for ActiveModel {}
