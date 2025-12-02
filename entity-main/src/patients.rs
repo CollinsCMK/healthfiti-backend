@@ -31,12 +31,10 @@ pub struct Model {
     pub country_code: Option<String>,
     #[sea_orm(unique)]
     pub phone_number: Option<String>,
-    #[sea_orm(column_type = "Text", nullable)]
     pub address: Option<String>,
     pub city: Option<String>,
     pub county: Option<String>,
     pub country: Option<String>,
-    #[sea_orm(unique)]
     pub primary_tenant_id: Option<Uuid>,
     pub blood_type: Option<String>,
     pub allergies: Option<Vec<String>>,

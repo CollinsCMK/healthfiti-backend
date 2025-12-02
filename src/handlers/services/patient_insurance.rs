@@ -4,6 +4,7 @@ use actix_multipart::Multipart;
 use actix_web::{HttpRequest, web};
 use chrono::{NaiveDate, Utc};
 use futures::StreamExt;
+use rust_decimal::{Decimal, dec};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use uuid::Uuid;
@@ -13,20 +14,29 @@ use crate::{
         self, entities,
         migrations::sea_orm::{
             ActiveModelTrait, ColumnTrait, Condition, EntityTrait, PaginatorTrait, QueryFilter,
-            QueryOrder, SelectTwo, Set,
+            QueryOrder, SelectThree, Set, TopologyStar,
         },
     },
     utils::{
         api_response::ApiResponse,
         app_state::AppState,
-        multipart::{field_to_byte, field_to_date, field_to_i32, field_to_string, upload_file},
+        ids::get_insurance_id,
+        multipart::{
+            field_to_bool, field_to_byte, field_to_date, field_to_decimal, field_to_i32,
+            field_to_string, field_to_uuid, upload_file,
+        },
         pagination::PaginationParams,
         validator_error::ValidationError,
     },
 };
 
 pub async fn fetch_patient_insurances(
-    stmt: SelectTwo<entities::prelude::Patients, entities::prelude::PatientInsurance>,
+    stmt: SelectThree<
+        entities::prelude::PatientInsurance,
+        entities::prelude::Patients,
+        entities::prelude::InsuranceProviders,
+        TopologyStar,
+    >,
     app_state: &AppState,
     query: &PaginationParams,
 ) -> Result<ApiResponse, ApiResponse> {
@@ -40,8 +50,8 @@ pub async fn fetch_patient_insurances(
             Condition::any()
                 .add(
                     Expr::col((
-                        main::entities::patient_insurance::Entity,
-                        main::entities::patient_insurance::Column::Provider,
+                        main::entities::insurance_providers::Entity,
+                        main::entities::insurance_providers::Column::Name,
                     ))
                     .ilike(like.clone()),
                 )
@@ -70,21 +80,17 @@ pub async fn fetch_patient_insurances(
             .await
             .map_err(|err| ApiResponse::new(500, json!({"message": err.to_string()})))?
             .into_iter()
-            .map(|(_, ins)| {
-                if let Some(ins) = ins {
-                    json!({
-                        "pid": ins.pid,
-                        "provider": ins.provider,
-                        "policy_number": ins.policy_number,
-                        "group_number": ins.group_number,
-                        "plan_type": ins.plan_type,
-                        "coverage_start_date": ins.coverage_start_date,
-                        "coverage_end_date": ins.coverage_end_date,
-                        "is_primary": ins.is_primary,
-                    })
-                } else {
-                    json!(null)
-                }
+            .map(|(ins, p, insp)| {
+                json!({
+                    "pid": ins.pid,
+                    "provider": insp.as_ref().map(|i| i.name.clone()),
+                    "policy_number": ins.policy_number,
+                    "group_number": ins.group_number,
+                    "plan_type": ins.plan_type,
+                    "coverage_start_date": ins.coverage_start_date,
+                    "coverage_end_date": ins.coverage_end_date,
+                    "is_primary": ins.is_primary,
+                })
             })
             .collect::<Vec<_>>();
 
@@ -108,26 +114,22 @@ pub async fn fetch_patient_insurances(
         .await
         .map_err(|err| ApiResponse::new(500, json!({"message": err.to_string()})))?
         .into_iter()
-        .map(|(patient, ins)| {
-            if let Some(ins) = ins {
-                json!({
-                    "pid": ins.pid,
-                    "provider": ins.provider,
-                    "policy_number": ins.policy_number,
-                    "group_number": ins.group_number,
-                    "plan_type": ins.plan_type,
-                    "coverage_start_date": ins.coverage_start_date,
-                    "coverage_end_date": ins.coverage_end_date,
-                    "is_primary": ins.is_primary,
-                    "patient": {
-                        "pid": patient.pid,
-                        "name": format!("{:?} {:?}", patient.first_name, patient.last_name),
-                    },
-                    "created_at": ins.created_at,
-                })
-            } else {
-                json!(null)
-            }
+        .map(|(ins, patient, insp)| {
+            json!({
+                "pid": ins.pid,
+                "provider": insp.as_ref().map(|i| i.name.clone()),
+                "policy_number": ins.policy_number,
+                "group_number": ins.group_number,
+                "plan_type": ins.plan_type,
+                "coverage_start_date": ins.coverage_start_date,
+                "coverage_end_date": ins.coverage_end_date,
+                "is_primary": ins.is_primary,
+                "patient": {
+                    "pid": patient.as_ref().map(|p| p.pid),
+                    "name": format!("{:?} {:?}", patient.as_ref().map(|p| p.first_name.clone()), patient.as_ref().map(|p| p.last_name.clone())),
+                },
+                "created_at": ins.created_at,
+            })
         })
         .collect::<Vec<_>>();
 
@@ -146,12 +148,17 @@ pub async fn fetch_patient_insurances(
 }
 
 pub async fn fetch_patient_insurance(
-    stmt: SelectTwo<entities::prelude::PatientInsurance, entities::prelude::Patients>,
+    stmt: SelectThree<
+        entities::prelude::PatientInsurance,
+        entities::prelude::Patients,
+        entities::prelude::InsuranceProviders,
+        TopologyStar,
+    >,
     app_state: &AppState,
 ) -> Result<ApiResponse, ApiResponse> {
     let stmt = stmt;
 
-    let (insurance, patient) = stmt
+    let (insurance, patient, insurance_provider) = stmt
         .one(&app_state.main_db)
         .await
         .map_err(|err| ApiResponse::new(500, json!({ "message": err.to_string() })))?
@@ -164,7 +171,7 @@ pub async fn fetch_patient_insurance(
         json!({
             "insurance": {
                 "pid": insurance.pid,
-                "provider": insurance.provider,
+                "provider": insurance_provider.as_ref().map(|i| i.name.clone()),
                 "policy_number": insurance.policy_number,
                 "group_number": insurance.group_number,
                 "plan_type": insurance.plan_type,
@@ -192,31 +199,36 @@ pub async fn fetch_patient_insurance(
 #[serde(default)]
 pub struct PatientInsuranceData {
     pub patient_id: Option<i32>,
-    pub provider: String,
+    pub insurance_id: Option<Uuid>,
     pub policy_number: String,
     pub group_number: Option<String>,
-    pub plan_type: String,
+    pub plan_name: Option<String>,
+    pub plan_type: Option<String>,
     pub coverage_start_date: NaiveDate,
-    pub coverage_end_date: NaiveDate,
+    pub coverage_end_date: Option<NaiveDate>,
+    pub policy_holder_name: Option<String>,
+    pub policy_holder_relationship: Option<String>,
+    pub copay_amount: Option<Decimal>,
+    pub deductible_amount: Option<Decimal>,
+    pub deductible_met_ytd: Decimal,
+    pub out_of_pocket_max: Option<Decimal>,
+    pub out_of_pocket_met_ytd: Decimal,
     pub is_primary: bool,
-    pub insurance_card_front: String,
-    pub insurance_card_back: String,
+    pub card_front_image: Option<String>,
+    pub card_back_image: Option<String>,
+    pub notes: Option<String>,
 }
 
 impl PatientInsuranceData {
-    pub fn validate(&self, is_admin: bool) -> Result<(), ValidationError> {
+    pub fn validate(&self, is_admin: bool, is_create: bool) -> Result<(), ValidationError> {
         let mut errors = HashMap::new();
 
-        if self.provider.trim().is_empty() {
-            errors.insert("provider".into(), "Provider is required.".into());
+        if is_create && self.insurance_id.is_none() {
+            errors.insert("insurance_id".into(), "Provider is required.".into());
         }
 
         if self.policy_number.trim().is_empty() {
             errors.insert("policy_number".into(), "Policy number is required.".into());
-        }
-
-        if self.plan_type.trim().is_empty() {
-            errors.insert("plan_type".into(), "Plan type is required.".into());
         }
 
         if self.coverage_start_date < Utc::now().date_naive() {
@@ -226,32 +238,69 @@ impl PatientInsuranceData {
             );
         }
 
-        if self.coverage_end_date < Utc::now().date_naive() {
+        if let Some(ced) = self.coverage_end_date {
+            if ced < Utc::now().date_naive() {
+                errors.insert(
+                    "coverage_end_date".into(),
+                    "Coverage end date cannot be in the past.".into(),
+                );
+            }
+
+            if ced < self.coverage_start_date {
+                errors.insert(
+                    "coverage_dates".into(),
+                    "Coverage end date cannot be before start date.".into(),
+                );
+            }
+        }
+
+        if let Some(relationship) = &self.policy_holder_relationship {
+            let relationship_lower = relationship.to_lowercase();
+            if !["yourself", "spouse", "parent", "child", "other"]
+                .contains(&relationship_lower.as_str())
+            {
+                errors.insert(
+                    "policy_holder_relationship".into(),
+                    "Policy holder relationship must be one of: yourself, spouse, parent, child, other.".into(),
+                );
+            }
+        } else {
             errors.insert(
-                "coverage_end_date".into(),
-                "Coverage end date cannot be in the past.".into(),
+                "policy_holder_relationship".into(),
+                "Policy holder relationship is required.".into(),
             );
         }
 
-        if self.coverage_end_date < self.coverage_start_date {
+        if self.deductible_met_ytd < dec!(0) {
             errors.insert(
-                "coverage_dates".into(),
-                "Coverage end date cannot be before start date.".into(),
+                "deductible_met_ytd".into(),
+                "Deductible met YTD cannot be negative.".into(),
             );
         }
 
-        if self.insurance_card_front.trim().is_empty() {
+        if let Some(deductible_amount) = &self.deductible_amount {
+            if self.deductible_met_ytd > *deductible_amount {
+                errors.insert(
+                    "deductible_met_ytd".into(),
+                    "Deductible met YTD cannot exceed the deductible amount.".into(),
+                );
+            }
+        }
+
+        if self.out_of_pocket_met_ytd < dec!(0) {
             errors.insert(
-                "insurance_card_front".into(),
-                "Insurance card front is required.".into(),
+                "out_of_pocket_met_ytd".into(),
+                "Out-of-pocket met YTD cannot be negative.".into(),
             );
         }
 
-        if self.insurance_card_back.trim().is_empty() {
-            errors.insert(
-                "insurance_card_back".into(),
-                "Insurance card back is required.".into(),
-            );
+        if let Some(out_of_pocket_max) = &self.out_of_pocket_max {
+            if self.out_of_pocket_met_ytd > *out_of_pocket_max {
+                errors.insert(
+                    "out_of_pocket_met_ytd".into(),
+                    "Out-of-pocket met YTD cannot exceed the out-of-pocket maximum.".into(),
+                );
+            }
         }
 
         if is_admin && self.patient_id.is_none() {
@@ -267,6 +316,30 @@ impl PatientInsuranceData {
             Err(ValidationError { errors })
         }
     }
+
+    pub fn get_holder_relationship(
+        &self,
+    ) -> main::entities::sea_orm_active_enums::PolicyholderRelationship {
+        match self
+            .policy_holder_relationship
+            .as_ref()
+            .map(|s| s.to_lowercase())
+            .as_deref()
+        {
+            Some("yourself") => {
+                main::entities::sea_orm_active_enums::PolicyholderRelationship::Yourself
+            }
+            Some("spouse") => {
+                main::entities::sea_orm_active_enums::PolicyholderRelationship::Spouse
+            }
+            Some("parent") => {
+                main::entities::sea_orm_active_enums::PolicyholderRelationship::Parent
+            }
+            Some("child") => main::entities::sea_orm_active_enums::PolicyholderRelationship::Child,
+            Some("other") => main::entities::sea_orm_active_enums::PolicyholderRelationship::Other,
+            _ => main::entities::sea_orm_active_enums::PolicyholderRelationship::Yourself,
+        }
+    }
 }
 
 async fn multipart_data(
@@ -274,6 +347,7 @@ async fn multipart_data(
     req: &HttpRequest,
     app_state: &AppState,
     is_admin: bool,
+    is_create: bool,
     patient_id: Option<i32>,
 ) -> Result<PatientInsuranceData, ApiResponse> {
     let mut data = PatientInsuranceData::default();
@@ -298,17 +372,36 @@ async fn multipart_data(
                     Some(field_to_i32(&mut field).await?)
                 }
             }
-            "provider" => data.provider = field_to_string(&mut field).await?,
+            "insurance_id" => data.insurance_id = Some(field_to_uuid(&mut field).await?),
             "policy_number" => data.policy_number = field_to_string(&mut field).await?,
             "group_number" => data.group_number = Some(field_to_string(&mut field).await?),
-            "plan_type" => data.plan_type = field_to_string(&mut field).await?,
+            "plan_name" => data.plan_name = Some(field_to_string(&mut field).await?),
+            "plan_type" => data.plan_type = Some(field_to_string(&mut field).await?),
             "coverage_start_date" => data.coverage_start_date = field_to_date(&mut field).await?,
-            "coverage_end_date" => data.coverage_end_date = field_to_date(&mut field).await?,
-            "insurance_card_front" => {
+            "coverage_end_date" => data.coverage_end_date = Some(field_to_date(&mut field).await?),
+            "policy_holder_name" => {
+                data.policy_holder_name = Some(field_to_string(&mut field).await?)
+            }
+            "policy_holder_relationship" => {
+                data.policy_holder_relationship = Some(field_to_string(&mut field).await?)
+            }
+            "copay_amount" => data.copay_amount = Some(field_to_decimal(&mut field).await?),
+            "deductible_amount" => {
+                data.deductible_amount = Some(field_to_decimal(&mut field).await?)
+            }
+            "deductible_met_ytd" => data.deductible_met_ytd = field_to_decimal(&mut field).await?,
+            "out_of_pocket_max" => {
+                data.out_of_pocket_max = Some(field_to_decimal(&mut field).await?)
+            }
+            "out_of_pocket_met_ytd" => {
+                data.out_of_pocket_met_ytd = field_to_decimal(&mut field).await?
+            }
+            "is_primary" => data.is_primary = field_to_bool(&mut field).await?,
+            "card_front_image" => {
                 let file_data = field_to_byte(&mut field).await?;
                 if !file_data.is_empty() {
                     let unique_filename =
-                        format!("insurance_card_front/{}-{}", Uuid::new_v4(), filename);
+                        format!("card_front_image/{}-{}", Uuid::new_v4(), filename);
 
                     let full_s3_key = upload_file(
                         &req,
@@ -319,14 +412,14 @@ async fn multipart_data(
                     )
                     .await?;
 
-                    data.insurance_card_front = full_s3_key;
+                    data.card_front_image = Some(full_s3_key);
                 }
             }
-            "insurance_card_back" => {
+            "card_back_image" => {
                 let file_data = field_to_byte(&mut field).await?;
                 if !file_data.is_empty() {
                     let unique_filename =
-                        format!("insurance_card_back/{}-{}", Uuid::new_v4(), filename);
+                        format!("card_back_image/{}-{}", Uuid::new_v4(), filename);
 
                     let full_s3_key = upload_file(
                         &req,
@@ -337,14 +430,14 @@ async fn multipart_data(
                     )
                     .await?;
 
-                    data.insurance_card_back = full_s3_key;
+                    data.card_back_image = Some(full_s3_key);
                 }
             }
             _ => {}
         }
     }
 
-    if let Err(err) = data.validate(is_admin) {
+    if let Err(err) = data.validate(is_admin, is_create) {
         return Err(ApiResponse::new(400, json!(err)));
     }
 
@@ -356,21 +449,32 @@ pub async fn create_patient_insurance(
     app_state: &AppState,
     req: HttpRequest,
     is_admin: bool,
+    is_create: bool,
     patient_id: Option<i32>,
 ) -> Result<ApiResponse, ApiResponse> {
-    let data = multipart_data(payload, &req, &app_state, is_admin, patient_id).await?;
+    let data = multipart_data(payload, &req, &app_state, is_admin, is_create, patient_id).await?;
+    let insurance_id = get_insurance_id(&app_state, data.insurance_id.unwrap()).await?;
 
     main::entities::patient_insurance::ActiveModel {
         patient_id: Set(data.patient_id.expect("Patient ID")),
-        provider: Set(data.provider.trim().to_string()),
+        insurance_id: Set(insurance_id),
         policy_number: Set(data.policy_number.trim().to_string()),
         group_number: Set(data.group_number.clone()),
-        plan_type: Set(Some(data.plan_type.clone())),
+        plan_name: Set(data.plan_name.clone()),
+        plan_type: Set(data.plan_type.clone()),
         coverage_start_date: Set(Some(data.coverage_start_date)),
-        coverage_end_date: Set(Some(data.coverage_end_date)),
+        coverage_end_date: Set(data.coverage_end_date),
+        policy_holder_name: Set(data.policy_holder_name.clone()),
+        policy_holder_relationship: Set(Some(data.get_holder_relationship())),
+        copay_amount: Set(data.copay_amount),
+        deductible_amount: Set(data.deductible_amount),
+        deductible_met_ytd: Set(data.deductible_met_ytd),
+        out_of_pocket_max: Set(data.out_of_pocket_max),
+        out_of_pocket_met_ytd: Set(data.out_of_pocket_met_ytd),
         is_primary: Set(data.is_primary),
-        insurance_card_front: Set(Some(data.insurance_card_front)),
-        insurance_card_back: Set(Some(data.insurance_card_back)),
+        card_front_image: Set(data.card_front_image),
+        card_back_image: Set(data.card_back_image),
+        notes: Set(data.notes),
         ..Default::default()
     }
     .insert(&app_state.main_db)
@@ -388,10 +492,11 @@ pub async fn edit_patient_insurance(
     app_state: &web::Data<AppState>,
     req: HttpRequest,
     is_admin: bool,
+    is_create: bool,
     patient_id: Option<i32>,
     insurance_id: Uuid,
 ) -> Result<ApiResponse, ApiResponse> {
-    let data = multipart_data(payload, &req, &app_state, is_admin, patient_id).await?;
+    let data = multipart_data(payload, &req, &app_state, is_admin, is_create, patient_id).await?;
 
     let insurance_model = main::entities::patient_insurance::Entity::find_by_pid(insurance_id)
         .filter(
@@ -417,32 +522,89 @@ pub async fn edit_patient_insurance(
         insurance_model.to_owned().into();
     let mut changed = false;
 
-    if insurance_model.provider.clone() != data.provider.trim() {
-        update_model.provider = Set(data.provider.trim().to_string());
-        changed = true;
-    }
-    if insurance_model.policy_number.clone() != data.policy_number.trim() {
+    if insurance_model.policy_number != data.policy_number.trim() {
         update_model.policy_number = Set(data.policy_number.trim().to_string());
         changed = true;
     }
+
     if insurance_model.group_number != data.group_number {
         update_model.group_number = Set(data.group_number.clone());
         changed = true;
     }
-    if insurance_model.plan_type.as_deref() != Some(data.plan_type.as_str()) {
-        update_model.plan_type = Set(Some(data.plan_type.clone()));
+
+    if insurance_model.plan_name != data.plan_name {
+        update_model.plan_name = Set(data.plan_name.clone());
         changed = true;
     }
+
+    if insurance_model.plan_type != data.plan_type {
+        update_model.plan_type = Set(data.plan_type.clone());
+        changed = true;
+    }
+
     if insurance_model.coverage_start_date != Some(data.coverage_start_date) {
         update_model.coverage_start_date = Set(Some(data.coverage_start_date));
         changed = true;
     }
-    if insurance_model.coverage_end_date != Some(data.coverage_end_date) {
-        update_model.coverage_end_date = Set(Some(data.coverage_end_date));
+
+    if insurance_model.coverage_end_date != data.coverage_end_date {
+        update_model.coverage_end_date = Set(data.coverage_end_date);
         changed = true;
     }
+
+    if insurance_model.policy_holder_name != data.policy_holder_name {
+        update_model.policy_holder_name = Set(data.policy_holder_name.clone());
+        changed = true;
+    }
+
+    let new_relationship = Some(data.get_holder_relationship());
+    if insurance_model.policy_holder_relationship != new_relationship {
+        update_model.policy_holder_relationship = Set(new_relationship);
+        changed = true;
+    }
+
+    if insurance_model.copay_amount != data.copay_amount {
+        update_model.copay_amount = Set(data.copay_amount);
+        changed = true;
+    }
+
+    if insurance_model.deductible_amount != data.deductible_amount {
+        update_model.deductible_amount = Set(data.deductible_amount);
+        changed = true;
+    }
+
+    if insurance_model.deductible_met_ytd != data.deductible_met_ytd {
+        update_model.deductible_met_ytd = Set(data.deductible_met_ytd);
+        changed = true;
+    }
+
+    if insurance_model.out_of_pocket_max != data.out_of_pocket_max {
+        update_model.out_of_pocket_max = Set(data.out_of_pocket_max);
+        changed = true;
+    }
+
+    if insurance_model.out_of_pocket_met_ytd != data.out_of_pocket_met_ytd {
+        update_model.out_of_pocket_met_ytd = Set(data.out_of_pocket_met_ytd);
+        changed = true;
+    }
+
     if insurance_model.is_primary != data.is_primary {
         update_model.is_primary = Set(data.is_primary);
+        changed = true;
+    }
+
+    if insurance_model.card_front_image != data.card_front_image {
+        update_model.card_front_image = Set(data.card_front_image.clone());
+        changed = true;
+    }
+
+    if insurance_model.card_back_image != data.card_back_image {
+        update_model.card_back_image = Set(data.card_back_image.clone());
+        changed = true;
+    }
+
+    if insurance_model.notes != data.notes {
+        update_model.notes = Set(data.notes.clone());
         changed = true;
     }
 

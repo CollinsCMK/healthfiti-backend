@@ -102,8 +102,8 @@ pub enum PaymentStatus {
     enum_name = "policyholder_relationship"
 )]
 pub enum PolicyholderRelationship {
-    #[sea_orm(string_value = "your_self")]
-    YourSelf,
+    #[sea_orm(string_value = "yourself")]
+    Yourself,
     #[sea_orm(string_value = "spouse")]
     Spouse,
     #[sea_orm(string_value = "parent")]

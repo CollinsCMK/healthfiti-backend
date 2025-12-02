@@ -13,7 +13,6 @@ pub struct Model {
     pub pid: Uuid,
     #[sea_orm(unique)]
     pub code: String,
-    #[sea_orm(unique)]
     pub name: String,
     #[sea_orm(column_type = "Text", nullable)]
     pub description: Option<String>,

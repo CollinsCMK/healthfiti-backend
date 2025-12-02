@@ -271,32 +271,32 @@ async fn tenant_login(
         }
     };
 
-    let existing_user = tenant::entities::users::Entity::find_by_sso_user_id(sso_user_id.clone())
-        .filter(tenant::entities::users::Column::DeletedAt.is_null())
-        .one(&tenant_db)
-        .await
-        .map_err(|err| {
-            log::error!("DB error during tenant lookup: {}", err);
-            ApiResponse::new(500, json!({ "message": "Database error" }))
-        })?;
+    // let existing_user = tenant::entities::users::Entity::find_by_sso_user_id(sso_user_id.clone())
+    //     .filter(tenant::entities::users::Column::DeletedAt.is_null())
+    //     .one(&tenant_db)
+    //     .await
+    //     .map_err(|err| {
+    //         log::error!("DB error during tenant lookup: {}", err);
+    //         ApiResponse::new(500, json!({ "message": "Database error" }))
+    //     })?;
 
-    let _tenant_user = match existing_user {
-        Some(user) => user,
-        None => {
-            log::info!("Tenant user not found. Creating new tenant user...");
+    // let _tenant_user = match existing_user {
+    //     Some(user) => user,
+    //     None => {
+    //         log::info!("Tenant user not found. Creating new tenant user...");
 
-            tenant::entities::users::ActiveModel {
-                sso_user_id: Set(sso_user_id.clone()),
-                ..Default::default()
-            }
-            .insert(&tenant_db)
-            .await
-            .map_err(|err| {
-                log::error!("Failed to create tenant user: {}", err);
-                ApiResponse::new(500, json!({ "message": "Failed to create tenant user" }))
-            })?
-        }
-    };
+    //         tenant::entities::users::ActiveModel {
+    //             sso_user_id: Set(sso_user_id.clone()),
+    //             ..Default::default()
+    //         }
+    //         .insert(&tenant_db)
+    //         .await
+    //         .map_err(|err| {
+    //             log::error!("Failed to create tenant user: {}", err);
+    //             ApiResponse::new(500, json!({ "message": "Failed to create tenant user" }))
+    //         })?
+    //     }
+    // };
 
     Ok(login_response)
 }

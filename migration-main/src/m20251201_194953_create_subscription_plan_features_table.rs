@@ -51,7 +51,7 @@ impl MigrationTrait for Migration {
                     .to_owned(),
             )
             .await?;
-        
+
         let _idx_uniq_subscription_plan_feature = Index::create()
             .name("uniq_subscription_plan_feature")
             .table(SubscriptionPlanFeatures::Table)

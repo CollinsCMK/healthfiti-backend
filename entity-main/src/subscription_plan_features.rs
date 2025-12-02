@@ -19,7 +19,7 @@ pub struct Model {
     pub deleted_at: Option<DateTime>,
     #[sea_orm(
         belongs_to,
-        from = "plan_id",
+        from = "feature_id",
         to = "id",
         on_update = "NoAction",
         on_delete = "Cascade"
@@ -27,7 +27,7 @@ pub struct Model {
     pub features: HasOne<super::features::Entity>,
     #[sea_orm(
         belongs_to,
-        from = "plan_id",
+        from = "subscription_plan_id",
         to = "id",
         on_update = "NoAction",
         on_delete = "Cascade"

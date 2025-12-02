@@ -37,7 +37,11 @@ impl MigrationTrait for Migration {
                     .col(string_null(Patients::FirstName).string_len(100))
                     .col(string_null(Patients::LastName).string_len(100))
                     .col(string_null(Patients::MiddleName).string_len(100))
-                    .col(string(Patients::PreferredLanguage).string_len(10).default("en"))
+                    .col(
+                        string(Patients::PreferredLanguage)
+                            .string_len(10)
+                            .default("en"),
+                    )
                     .col(string_uniq(Patients::PhotoUrl).null())
                     .col(date_null(Patients::Dob))
                     .col(enumeration_null(

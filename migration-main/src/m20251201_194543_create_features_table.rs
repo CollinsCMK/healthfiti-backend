@@ -38,23 +38,23 @@ impl MigrationTrait for Migration {
             )
             .await?;
 
-            let _idx_features_code = Index::create()
-                .name("idx_features_code")
-                .table(Features::Table)
-                .col(Features::Code)
-                .to_owned();
+        let _idx_features_code = Index::create()
+            .name("idx_features_code")
+            .table(Features::Table)
+            .col(Features::Code)
+            .to_owned();
 
-            let _idx_features_is_premium = Index::create()
-                .name("idx_features_is_premium")
-                .table(Features::Table)
-                .col(Features::IsPremium)
-                .to_owned();
+        let _idx_features_is_premium = Index::create()
+            .name("idx_features_is_premium")
+            .table(Features::Table)
+            .col(Features::IsPremium)
+            .to_owned();
 
-            let _idx_features_is_active = Index::create()
-                .name("idx_features_is_active")
-                .table(Features::Table)
-                .col(Features::IsActive)
-                .to_owned();
+        let _idx_features_is_active = Index::create()
+            .name("idx_features_is_active")
+            .table(Features::Table)
+            .col(Features::IsActive)
+            .to_owned();
 
         Ok(())
     }

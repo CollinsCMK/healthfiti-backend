@@ -23,13 +23,15 @@ pub async fn index(
     query: web::Query<PaginationParams>,
     req: HttpRequest,
 ) -> Result<ApiResponse, ApiResponse> {
-    let mut stmt = main::entities::patients::Entity::find()
-        .find_also_related(main::entities::patient_insurance::Entity);
+    let mut stmt = main::entities::patient_insurance::Entity::find()
+        .find_also_related(main::entities::patients::Entity)
+        .find_also_related(main::entities::insurance_providers::Entity);
 
     if !has_permission("view_archived_patient_insurances", &req).await? {
         stmt = stmt
             .filter(main::entities::patient_insurance::Column::DeletedAt.is_null())
-            .filter(main::entities::patients::Column::DeletedAt.is_null());
+            .filter(main::entities::patients::Column::DeletedAt.is_null())
+            .filter(main::entities::insurance_providers::Column::DeletedAt.is_null());
     }
 
     fetch_patient_insurances(stmt, &app_state, &query).await
@@ -43,7 +45,8 @@ pub async fn show(
     let insurance_id = path.into_inner();
 
     let mut stmt = main::entities::patient_insurance::Entity::find_by_pid(insurance_id)
-        .find_also_related(main::entities::patients::Entity);
+        .find_also_related(main::entities::patients::Entity)
+        .find_also_related(main::entities::insurance_providers::Entity);
 
     if !has_permission("view_archived_patient_insurances", &req).await? {
         stmt = stmt
@@ -59,7 +62,7 @@ pub async fn create(
     app_state: web::Data<AppState>,
     req: HttpRequest,
 ) -> Result<ApiResponse, ApiResponse> {
-    create_patient_insurance(payload, &app_state, req, true, None).await
+    create_patient_insurance(payload, &app_state, req, true, true, None).await
 }
 
 pub async fn edit(
@@ -70,7 +73,7 @@ pub async fn edit(
 ) -> Result<ApiResponse, ApiResponse> {
     let insurance_id = path.into_inner();
 
-    edit_patient_insurance(payload, &app_state, req, false, None, insurance_id).await
+    edit_patient_insurance(payload, &app_state, req, false, false, None, insurance_id).await
 }
 
 pub async fn set_primary(

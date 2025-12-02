@@ -5,7 +5,7 @@ use uuid::Uuid;
 use crate::{
     db::main::{
         self,
-        migrations::sea_orm::{ColumnTrait, QueryFilter},
+        migrations::sea_orm::{ColumnTrait, EntityTrait, QueryFilter},
     },
     handlers::services::patient_insurance::{
         create_patient_insurance, destroy_patient_insurance, edit_patient_insurance,
@@ -25,9 +25,11 @@ async fn index(
     query: web::Query<PaginationParams>,
     req: HttpRequest,
 ) -> Result<ApiResponse, ApiResponse> {
-    let claims = get_logged_in_user_claims(&req)?;
-    let stmt = main::entities::patients::Entity::find_by_sso_user_id(claims.sub)
-        .find_also_related(main::entities::patient_insurance::Entity);
+    let (patient_id, _) = get_patient_id(&req, &app_state, None).await?;
+    let stmt = main::entities::patient_insurance::Entity::find()
+        .filter(main::entities::patient_insurance::Column::PatientId.eq(patient_id))
+        .find_also_related(main::entities::patients::Entity)
+        .find_also_related(main::entities::insurance_providers::Entity);
 
     fetch_patient_insurances(stmt, &app_state, &query).await
 }
@@ -43,6 +45,7 @@ async fn show(
 
     let stmt = main::entities::patient_insurance::Entity::find_by_pid(insurance_id)
         .find_also_related(main::entities::patients::Entity)
+        .find_also_related(main::entities::insurance_providers::Entity)
         .filter(main::entities::patients::Column::SsoUserId.eq(claims.sub))
         .filter(main::entities::patient_insurance::Column::DeletedAt.is_null());
 
@@ -57,7 +60,7 @@ async fn create(
 ) -> Result<ApiResponse, ApiResponse> {
     let (patient_id, _) = get_patient_id(&req, &app_state, None).await?;
 
-    create_patient_insurance(payload, &app_state, req, false, Some(patient_id)).await
+    create_patient_insurance(payload, &app_state, req, false, true, Some(patient_id)).await
 }
 
 #[put("/{pid}")]
@@ -74,6 +77,7 @@ async fn edit(
         payload,
         &app_state,
         req,
+        false,
         false,
         Some(patient_id),
         insurance_id,

@@ -2,6 +2,7 @@ pub mod api_response;
 pub mod app_state;
 pub mod constants;
 pub mod http_client;
+pub mod ids;
 pub mod jwt;
 pub mod message_queue;
 pub mod migrate;

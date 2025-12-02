@@ -12,7 +12,7 @@ impl MigrationTrait for Migration {
                 Type::create()
                     .as_enum(Alias::new("policyholder_relationship"))
                     .values([
-                        Alias::new("your_self"),
+                        Alias::new("yourself"),
                         Alias::new("spouse"),
                         Alias::new("parent"),
                         Alias::new("child"),
@@ -68,26 +68,31 @@ impl MigrationTrait for Migration {
                     .col(string_null(PatientInsurance::PlanType).string_len(100))
                     .col(date_null(PatientInsurance::CoverageStartDate))
                     .col(date_null(PatientInsurance::CoverageEndDate))
-                    .col(string_null(PatientInsurance::PolicyholderName).string_len(255))
-                    .col(
-                        enumeration(
-                            PatientInsurance::PolicyholderRelationship,
-                            Alias::new("policyholder_relationship"),
-                            vec![
-                                Alias::new("your_self"),
-                                Alias::new("spouse"),
-                                Alias::new("parent"),
-                                Alias::new("child"),
-                                Alias::new("other"),
-                            ],
-                        )
-                        .null(),
-                    )
+                    .col(string_null(PatientInsurance::PolicyHolderName).string_len(255))
+                    .col(enumeration_null(
+                        PatientInsurance::PolicyHolderRelationship,
+                        Alias::new("policyholder_relationship"),
+                        vec![
+                            Alias::new("yourself"),
+                            Alias::new("spouse"),
+                            Alias::new("parent"),
+                            Alias::new("child"),
+                            Alias::new("other"),
+                        ],
+                    ))
                     .col(decimal_null(PatientInsurance::CopayAmount).decimal_len(10, 2))
                     .col(decimal_null(PatientInsurance::DeductibleAmount).decimal_len(10, 2))
-                    .col(decimal(PatientInsurance::DeductibleMetYtd).decimal_len(10, 2).default(0.00))
+                    .col(
+                        decimal(PatientInsurance::DeductibleMetYtd)
+                            .decimal_len(10, 2)
+                            .default(0.00),
+                    )
                     .col(decimal_null(PatientInsurance::OutOfPocketMax).decimal_len(10, 2))
-                    .col(decimal(PatientInsurance::OutOfPocketMetYtd).decimal_len(10, 2).default(0.00))
+                    .col(
+                        decimal(PatientInsurance::OutOfPocketMetYtd)
+                            .decimal_len(10, 2)
+                            .default(0.00),
+                    )
                     .col(
                         enumeration(
                             PatientInsurance::VerificationStatus,
@@ -161,11 +166,19 @@ impl MigrationTrait for Migration {
             .await?;
 
         manager
-            .drop_type(Type::drop().name(Alias::new("policyholder_relationship")).to_owned())
+            .drop_type(
+                Type::drop()
+                    .name(Alias::new("policyholder_relationship"))
+                    .to_owned(),
+            )
             .await?;
 
         manager
-            .drop_type(Type::drop().name(Alias::new("verification_status")).to_owned())
+            .drop_type(
+                Type::drop()
+                    .name(Alias::new("verification_status"))
+                    .to_owned(),
+            )
             .await
     }
 }
@@ -183,8 +196,8 @@ enum PatientInsurance {
     PlanType,
     CoverageStartDate,
     CoverageEndDate,
-    PolicyholderName,
-    PolicyholderRelationship,
+    PolicyHolderName,
+    PolicyHolderRelationship,
     CopayAmount,
     DeductibleAmount,
     DeductibleMetYtd,

@@ -49,9 +49,7 @@ impl MigrationTrait for Migration {
                     .col(uuid_uniq(Tenants::SsoTenantId))
                     .col(string(Tenants::Name).string_len(255))
                     .col(string_uniq(Tenants::Slug).string_len(100))
-                    .col(string_uniq(Tenants::DbName).string_len(100))
-                    .col(string_null(Tenants::DbUsername).string_len(100))
-                    .col(string_null(Tenants::DbPassword).string_len(100))
+                    .col(text_uniq(Tenants::DbUrl))
                     .col(enumeration_null(
                         Tenants::SubscriptionTier,
                         Alias::new("subscription_tier"),
@@ -145,9 +143,7 @@ enum Tenants {
     SsoTenantId,
     Name,
     Slug,
-    DbName,
-    DbUsername,
-    DbPassword,
+    DbUrl,
     SubscriptionTier,
     SubscriptionStatus,
     TrialEndsAt,

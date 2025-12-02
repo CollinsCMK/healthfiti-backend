@@ -18,10 +18,8 @@ pub struct Model {
     pub name: String,
     #[sea_orm(unique)]
     pub slug: String,
-    #[sea_orm(unique)]
-    pub db_name: String,
-    pub db_username: Option<String>,
-    pub db_password: Option<String>,
+    #[sea_orm(column_type = "Text", unique)]
+    pub db_url: String,
     pub subscription_tier: Option<SubscriptionTier>,
     pub subscription_status: TenantSubscriptionStatus,
     pub trial_ends_at: Option<DateTime>,

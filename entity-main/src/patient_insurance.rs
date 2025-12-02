@@ -21,8 +21,8 @@ pub struct Model {
     pub plan_type: Option<String>,
     pub coverage_start_date: Option<Date>,
     pub coverage_end_date: Option<Date>,
-    pub policyholder_name: Option<String>,
-    pub policyholder_relationship: Option<PolicyholderRelationship>,
+    pub policy_holder_name: Option<String>,
+    pub policy_holder_relationship: Option<PolicyholderRelationship>,
     #[sea_orm(column_type = "Decimal(Some((10, 2)))", nullable)]
     pub copay_amount: Option<Decimal>,
     #[sea_orm(column_type = "Decimal(Some((10, 2)))", nullable)]

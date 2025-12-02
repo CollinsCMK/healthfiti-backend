@@ -14,8 +14,8 @@ impl MigrationTrait for Migration {
                     .values([
                         Alias::new("hourly"),
                         Alias::new("daily"),
-                        Alias::new("monthly")
-                        ])
+                        Alias::new("monthly"),
+                    ])
                     .to_owned(),
             )
             .await?;
@@ -40,17 +40,15 @@ impl MigrationTrait for Migration {
                     )
                     .col(string(UsageMetrics::MetricType).string_len(100))
                     .col(big_integer(UsageMetrics::MetricValue))
-                    .col(
-                        enumeration(
-                            UsageMetrics::AggregationPeriod,
-                            Alias::new("aggregation_period"),
-                            vec![
-                                Alias::new("hourly"),
-                                Alias::new("daily"),
-                                Alias::new("monthly")
-                            ],
-                        )
-                    )
+                    .col(enumeration(
+                        UsageMetrics::AggregationPeriod,
+                        Alias::new("aggregation_period"),
+                        vec![
+                            Alias::new("hourly"),
+                            Alias::new("daily"),
+                            Alias::new("monthly"),
+                        ],
+                    ))
                     .col(timestamp(UsageMetrics::PeriodStart))
                     .col(timestamp(UsageMetrics::PeriodEnd))
                     .col(uuid_null(UsageMetrics::FacilityId))
@@ -89,7 +87,11 @@ impl MigrationTrait for Migration {
             .await?;
 
         manager
-            .drop_type(Type::drop().name(Alias::new("aggregation_period")).to_owned())
+            .drop_type(
+                Type::drop()
+                    .name(Alias::new("aggregation_period"))
+                    .to_owned(),
+            )
             .await
     }
 }
