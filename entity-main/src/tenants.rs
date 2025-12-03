@@ -15,9 +15,15 @@ pub struct Model {
     pub pid: Uuid,
     #[sea_orm(unique)]
     pub sso_tenant_id: Uuid,
-    pub name: String,
     #[sea_orm(unique)]
     pub slug: String,
+    pub country: Option<String>,
+    pub county: Option<String>,
+    pub city: Option<String>,
+    #[sea_orm(column_type = "Decimal(Some((10, 8)))", nullable)]
+    pub latitude: Option<Decimal>,
+    #[sea_orm(column_type = "Decimal(Some((11, 8)))", nullable)]
+    pub longitude: Option<Decimal>,
     #[sea_orm(column_type = "Text", unique)]
     pub db_url: String,
     pub subscription_tier: Option<SubscriptionTier>,
@@ -26,9 +32,8 @@ pub struct Model {
     pub subscription_started_at: Option<DateTime>,
     pub subscription_ends_at: Option<DateTime>,
     pub contact_email: Option<String>,
+    pub country_code: Option<String>,
     pub contact_phone: Option<String>,
-    #[sea_orm(column_type = "Text", nullable)]
-    pub logo_url: Option<String>,
     pub timezone: String,
     pub currency: String,
     pub settings: Option<Json>,
