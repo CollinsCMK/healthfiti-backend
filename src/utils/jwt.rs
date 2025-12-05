@@ -39,6 +39,13 @@ pub fn get_logged_in_user_claims(req: &HttpRequest) -> Result<Claims, ApiRespons
         .ok_or_else(|| ApiResponse::new(401, json!({ "message": "Unauthorized" })))
 }
 
+pub fn get_logged_in_tenant_pid(req: &HttpRequest) -> Result<Uuid, ApiResponse> {
+    let claims = get_logged_in_user_claims(&req)?;
+    claims
+        .tenant_pid
+        .ok_or(ApiResponse::new(401, json!({ "message": "Unauthorized" })))
+}
+
 pub async fn get_patient_id(
     req: &HttpRequest,
     app_state: &web::Data<AppState>,

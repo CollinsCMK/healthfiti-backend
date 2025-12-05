@@ -1,11 +1,13 @@
 use actix_web::{HttpResponse, Responder, ResponseError, body::BoxBody, http::StatusCode};
+use serde::Serialize;
 use serde_json::Value;
 use std::fmt::Display;
 
-#[derive(Debug)]
+#[derive(Serialize, Debug)]
 pub struct ApiResponse {
     pub status_code: u16,
     pub body: String,
+    #[serde(skip_serializing)]
     response_code: StatusCode,
 }
 

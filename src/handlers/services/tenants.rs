@@ -11,12 +11,16 @@ use uuid::Uuid;
 use crate::{
     db::main::{
         self,
-        migrations::sea_orm::{ActiveModelTrait, ColumnTrait, EntityTrait, QueryFilter, Select, Set},
+        migrations::sea_orm::{
+            ActiveModelTrait, ColumnTrait, EntityTrait, QueryFilter, Select, Set,
+        },
     },
     handlers::auth::phone_verification::SuccessResponse,
-    utils::{api_response::ApiResponse, app_state::AppState, http_client::ApiClient, pagination::PaginationParams, validator_error::ValidationError},
+    utils::{
+        api_response::ApiResponse, app_state::AppState, http_client::ApiClient,
+        pagination::PaginationParams, validator_error::ValidationError,
+    },
 };
-
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct TenantResponse {
@@ -43,9 +47,7 @@ pub struct ApiResponseDTO<T> {
     pub pagination: Option<PaginationInfo>,
 }
 
-pub async fn get_all_tenants(
-    query: &PaginationParams,
-) -> Result<ApiResponse, ApiResponse> {
+pub async fn get_all_tenants(query: &PaginationParams) -> Result<ApiResponse, ApiResponse> {
     let fetch_all = query.all.unwrap_or(false);
 
     let api = ApiClient::new();
@@ -284,18 +286,18 @@ pub async fn create_tenant(
             currency: Set(data.currency.clone()),
             ..Default::default()
         }
-            .insert(&app_state.main_db)
-            .await
-            .map_err(|err| {
-                log::error!("Failed to create tenant: {}", err);
-                ApiResponse::new(500, json!({ "message": "Failed to create tenant" }))
-            })?;
+        .insert(&app_state.main_db)
+        .await
+        .map_err(|err| {
+            log::error!("Failed to create tenant: {}", err);
+            ApiResponse::new(500, json!({ "message": "Failed to create tenant" }))
+        })?;
 
         return Ok(ApiResponse::new(
             200,
             json!({ "message": "Tenant created successfully" }),
         ));
-    }  
+    }
 
     Err(ApiResponse::new(
         500,
@@ -338,83 +340,86 @@ pub async fn edit_tenant(
         })?;
 
     // if response.message {
-        let mut update_model: main::entities::tenants::ActiveModel = tenant.to_owned().into();
-        let mut changed = false;
+    let mut update_model: main::entities::tenants::ActiveModel = tenant.to_owned().into();
+    let mut changed = false;
 
-        if data.country != tenant.country {
-            update_model.country = Set(data.country.clone());
-            changed = true;
-        }
+    if data.country != tenant.country {
+        update_model.country = Set(data.country.clone());
+        changed = true;
+    }
 
-        if data.county != tenant.county {
-            update_model.county = Set(data.county.clone());
-            changed = true;
-        }
+    if data.county != tenant.county {
+        update_model.county = Set(data.county.clone());
+        changed = true;
+    }
 
-        if data.city != tenant.city {
-            update_model.city = Set(data.city.clone());
-            changed = true;
-        }
+    if data.city != tenant.city {
+        update_model.city = Set(data.city.clone());
+        changed = true;
+    }
 
-        if data.latitude != tenant.latitude {
-            update_model.latitude = Set(data.latitude.clone());
-            changed = true;
-        }
+    if data.latitude != tenant.latitude {
+        update_model.latitude = Set(data.latitude.clone());
+        changed = true;
+    }
 
-        if data.longitude != tenant.longitude {
-            update_model.longitude = Set(data.longitude.clone());
-            changed = true;
-        }
+    if data.longitude != tenant.longitude {
+        update_model.longitude = Set(data.longitude.clone());
+        changed = true;
+    }
 
-        if data.db_url != tenant.db_url {
-            update_model.db_url = Set(data.db_url.clone());
-            changed = true;
-        }
+    if data.db_url != tenant.db_url {
+        update_model.db_url = Set(data.db_url.clone());
+        changed = true;
+    }
 
-        if data.contact_email != tenant.contact_email {
-            update_model.contact_email = Set(data.contact_email.clone());
-            changed = true;
-        }
+    if data.contact_email != tenant.contact_email {
+        update_model.contact_email = Set(data.contact_email.clone());
+        changed = true;
+    }
 
-        if data.country_code != tenant.country_code {
-            update_model.country_code = Set(data.country_code.clone());
-            changed = true;
-        }
+    if data.country_code != tenant.country_code {
+        update_model.country_code = Set(data.country_code.clone());
+        changed = true;
+    }
 
-        if data.contact_phone != tenant.contact_phone {
-            update_model.contact_phone = Set(data.contact_phone.clone());
-            changed = true;
-        }
+    if data.contact_phone != tenant.contact_phone {
+        update_model.contact_phone = Set(data.contact_phone.clone());
+        changed = true;
+    }
 
-        if data.timezone != tenant.timezone {
-            update_model.timezone = Set(data.timezone.clone());
-            changed = true;
-        }
+    if data.timezone != tenant.timezone {
+        update_model.timezone = Set(data.timezone.clone());
+        changed = true;
+    }
 
-        if data.currency != tenant.currency {
-            update_model.currency = Set(data.currency.clone());
-            changed = true;
-        }
+    if data.currency != tenant.currency {
+        update_model.currency = Set(data.currency.clone());
+        changed = true;
+    }
 
-        if !changed {
-            return Err(ApiResponse::new(
-                400,
-                json!({
-                    "message": "No updates were made because the data is unchanged."
-                }),
-            ));
-        }
+    if !changed {
+        return Err(ApiResponse::new(
+            400,
+            json!({
+                "message": "No updates were made because the data is unchanged."
+            }),
+        ));
+    }
 
-        update_model.updated_at = Set(Utc::now().naive_utc());
-        update_model.update(&app_state.main_db).await.map_err(|err| {
-                log::error!("Failed to update tenant: {}", err);
-                ApiResponse::new(500, json!({ "message": "Failed to update tenant" }))
-            })?;
+    update_model.updated_at = Set(Utc::now().naive_utc());
+    update_model
+        .update(&app_state.main_db)
+        .await
+        .map_err(|err| {
+            log::error!("Failed to update tenant: {}", err);
+            ApiResponse::new(500, json!({ "message": "Failed to update tenant" }))
+        })?;
 
-        Ok(ApiResponse::new(
-            200,
-            json!({ "message": "Tenant updated successfully" }),
-        ))
+    Ok(ApiResponse::new(
+        200,
+        json!({ "message": "Tenant updated successfully" }),
+    ))
     // }
 
     // Err(ApiResponse::new(
@@ -429,10 +434,15 @@ pub struct ActivateTenantResponse {
     pub message: String,
 }
 
+#[derive(Deserialize, Debug)]
+pub struct TenantStatus {
+    pub status: String,
+}
+
 pub async fn set_active_status_tenant(
     app_state: &AppState,
     tenant_pid: Uuid,
-    status: &str,
+    data: &TenantStatus,
 ) -> Result<ApiResponse, ApiResponse> {
     let tenant = main::entities::tenants::Entity::find_by_pid(tenant_pid)
         .filter(main::entities::tenants::Column::DeletedAt.is_null())
@@ -451,7 +461,7 @@ pub async fn set_active_status_tenant(
     let endpoint = format!("tenants/status/{}", tenant.sso_tenant_id);
 
     let json_value = json!({
-        "status": status,
+        "status": data.status,
     });
 
     let response: ActivateTenantResponse = api
