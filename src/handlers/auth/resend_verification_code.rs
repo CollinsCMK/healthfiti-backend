@@ -7,7 +7,7 @@ use serde_json::json;
 use uuid::Uuid;
 
 use crate::{
-    handlers::auth::phone_verification::SuccessResponse,
+    handlers::services::tenants::ApiResponseDTO,
     utils::{api_response::ApiResponse, http_client::ApiClient, validator_error::ValidationError},
 };
 
@@ -68,7 +68,7 @@ pub async fn resend_otp(
 
     let api = ApiClient::new();
 
-    let resend_otp: SuccessResponse = api
+    let resend_otp: ApiResponseDTO<()> = api
         .call(
             "auth/resend_otp",
             &Some(req.clone()),

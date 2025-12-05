@@ -1,8 +1,7 @@
 use migration_main::MigratorTrait;
 use serde_json::json;
 use std::{
-    collections::HashMap,
-    sync::{Arc, RwLock},
+    collections::HashMap, process::Command, sync::{Arc, RwLock}
 };
 use uuid::Uuid;
 
@@ -63,6 +62,8 @@ pub async fn migrate_tenants(
                 ApiResponse::new(500, json!({ "message": err.to_string() }))
             })?;
 
+        // run_migrations(&db_url)?;
+
         seed_tenant_all(&tenant_db).await.map_err(|err| {
             log::error!("Failed to seed tenant db data {}: {}", tenant_id, err);
             ApiResponse::new(500, json!({ "message": err.to_string() }))
@@ -72,4 +73,23 @@ pub async fn migrate_tenants(
     }
 
     Ok(tenant_dbs)
+}
+
+pub async fn run_migrations(
+    db_url: &str,
+) -> Result<ApiResponse, ApiResponse> {
+    let status = Command::new("sea-orm-cli")
+        .args(["migrate", "up"])
+        .env("DATABASE_URL", db_url)
+        .status()
+        .map_err(|err| {
+            log::error!("Failed to run migrations: {}", err);
+            ApiResponse::new(500, json!({ "message": err.to_string() }))
+        })?;
+
+    if !status.success() {
+        return Err(ApiResponse::new(500, json!({ "message": "Migration failed" })));
+    }
+
+    Ok(ApiResponse::new(200, json!({ "message": "Migration successful" })))
 }

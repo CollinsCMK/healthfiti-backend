@@ -15,8 +15,7 @@ use crate::{
         migrations::sea_orm::{ActiveModelTrait, ColumnTrait, QueryFilter, Set},
     },
     handlers::{
-        auth::phone_verification::SuccessResponse,
-        shared::profile::{get_profile_data, get_user_role_ids},
+        services::tenants::ApiResponseDTO, shared::profile::{get_profile_data, get_user_role_ids}
     },
     utils::{
         api_response::ApiResponse,
@@ -264,7 +263,7 @@ pub async fn upsert(
     });
 
     let api = ApiClient::new();
-    let _patient_sso: SuccessResponse = api
+    let _patient_sso: ApiResponseDTO<()> = api
         .call(&endpoint, &Some(req.clone()), Some(&json_data), Method::PUT)
         .await
         .map_err(|err| {

@@ -7,7 +7,7 @@ use serde_json::json;
 use uuid::Uuid;
 
 use crate::{
-    handlers::auth::{phone_verification::SuccessResponse, two_factor::OtpCode},
+    handlers::{auth::two_factor::OtpCode, services::tenants::ApiResponseDTO},
     utils::{
         api_response::ApiResponse, http_client::ApiClient, validation::validate_password,
         validator_error::ValidationError,
@@ -101,7 +101,7 @@ pub async fn reset_password(
 
     let api = ApiClient::new();
 
-    let reset: SuccessResponse = api
+    let reset: ApiResponseDTO<()> = api
         .call(
             "auth/reset_password",
             &Some(req.clone()),

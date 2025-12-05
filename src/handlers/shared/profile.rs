@@ -11,12 +11,10 @@ use crate::{
     db::main::{
         self,
         migrations::sea_orm::{ColumnTrait, QueryFilter},
-    },
-    handlers::auth::phone_verification::SuccessResponse,
-    utils::{
+    }, handlers::services::tenants::ApiResponseDTO, utils::{
         api_response::ApiResponse, app_state::AppState, http_client::ApiClient,
         jwt::get_logged_in_user_claims, validator_error::ValidationError,
-    },
+    }
 };
 
 #[derive(Serialize, Deserialize, Default, Debug, Clone)]
@@ -401,7 +399,7 @@ async fn regenerate_recovery_codes(
 async fn enable_otp(req: HttpRequest) -> Result<ApiResponse, ApiResponse> {
     let api = ApiClient::new();
 
-    let otp: SuccessResponse = api
+    let otp: ApiResponseDTO<()> = api
         .call(
             "users/me/enable_otp",
             &Some(req.clone()),

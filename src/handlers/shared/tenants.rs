@@ -3,8 +3,7 @@ use reqwest::Method;
 use serde_json::json;
 
 use crate::{
-    handlers::auth::phone_verification::SuccessResponse,
-    utils::{api_response::ApiResponse, http_client::ApiClient},
+    handlers::services::tenants::ApiResponseDTO, utils::{api_response::ApiResponse, http_client::ApiClient},
 };
 
 #[get("/check")]
@@ -17,7 +16,7 @@ async fn is_tenant_name_taken(
 
     let api = ApiClient::new();
 
-    let tenant: SuccessResponse = api
+    let tenant: ApiResponseDTO<()> = api
         .call(&endpoint, &Some(req.clone()), None::<&()>, Method::POST)
         .await
         .map_err(|err| {

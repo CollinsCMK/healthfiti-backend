@@ -15,11 +15,9 @@ use crate::{
         migrations::sea_orm::{
             ActiveModelTrait, ColumnTrait, EntityTrait, QueryFilter, Select, Set,
         },
-    },
-    handlers::auth::phone_verification::SuccessResponse,
-    utils::{
-        api_response::ApiResponse, app_state::AppState, http_client::ApiClient, pagination::PaginationParams, slug::slugify, validation::validate_db_url, validator_error::ValidationError
-    },
+    }, handlers::services::tenant_applications::get_tenant_application_data, utils::{
+        api_response::ApiResponse, app_state::AppState, http_client::ApiClient, jwt::get_logged_in_user_claims, migrate::run_migrations, pagination::PaginationParams, slug::slugify, validation::validate_db_url, validator_error::ValidationError
+    }
 };
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -41,6 +39,7 @@ pub struct PaginationInfo {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ApiResponseDTO<T> {
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub data: Option<T>,
     pub message: String,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -301,6 +300,13 @@ pub async fn create_tenant(
             ApiResponse::new(500, json!({ "message": "Failed to create tenant" }))
         })?;
 
+        run_migrations(&data.db_url)
+            .await
+            .map_err(|err| {
+                log::error!("Failed to run migrations: {}", err);
+                ApiResponse::new(500, json!({ "message": "Failed to run migrations" }))
+            })?;
+
         return Ok(ApiResponse::new(
             200,
             json!({ "message": "Tenant created successfully" }),
@@ -318,6 +324,10 @@ pub async fn edit_tenant(
     tenant_pid: Uuid,
     data: &TenantData,
 ) -> Result<ApiResponse, ApiResponse> {
+    if let Err(err) = data.validate() {
+        return Err(ApiResponse::new(500, json!(err)));
+    }
+
     let tenant = main::entities::tenants::Entity::find_by_pid(tenant_pid)
         .filter(main::entities::tenants::Column::DeletedAt.is_null())
         .one(&app_state.main_db)
@@ -339,7 +349,7 @@ pub async fn edit_tenant(
         "status": data.status,
     });
 
-    let _response: SuccessResponse = api
+    let _response: ApiResponseDTO<()> = api
         .call(&endpoint, &None, Some(&json_value), Method::POST)
         .await
         .map_err(|err| {
@@ -436,10 +446,301 @@ pub async fn edit_tenant(
     // ))
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone, Default)]
+#[serde(default)]
+pub struct Theme {
+    pub light: ThemeVariant,
+    pub dark: ThemeVariant,
+    pub fonts: FontSettings,
+    pub domains: DomainConfig,
+    pub logo_url: Option<String>,
+    pub privacy_policy: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, Default)]
+#[serde(default)]
+pub struct ThemeVariant {
+    pub color_primary: String,
+    pub color_secondary: String,
+    pub color_accent: String,
+    pub color_success: String,
+    pub color_warning: String,
+    pub color_info: String,
+    pub color_danger: String,
+
+    pub color_background: String,
+    pub color_foreground: String,
+    pub color_muted: String,
+    pub color_muted_foreground: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, Default)]
+#[serde(default)]
+pub struct FontSettings {
+    pub font_family: String,
+    pub font_size_base: String,
+    pub font_size_small: String,
+    pub font_size_large: String,
+    pub line_height: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, Default)]
+#[serde(default)]
+pub struct DomainConfig {
+    pub admin_subdomain: String,
+    pub admin_domain: Option<String>,
+    pub patient_subdomain: String,
+    pub patient_domain: Option<String>,
+}
+
+impl Theme {
+    pub fn validate(&self) -> Result<(), ValidationError> {
+        let mut errors = HashMap::new();
+
+        fn validate_color(
+            prefix: &str,
+            key: &str,
+            value: &str,
+            errors: &mut HashMap<String, String>,
+        ) {
+            let full = format!("{}_{}", prefix, key);
+
+            if value.trim().is_empty() {
+                errors.insert(full.clone(), format!("{} is required.", full));
+            } else if !value.starts_with('#') || value.len() < 4 {
+                errors.insert(full.clone(), format!("{} must be a valid HEX color.", full));
+            }
+        }
+
+        let validate_variant = |prefix: &str, variant: &ThemeVariant, errors: &mut HashMap<String, String>| {
+            validate_color(prefix, "color_primary", &variant.color_primary, errors);
+            validate_color(prefix, "color_secondary", &variant.color_secondary, errors);
+            validate_color(prefix, "color_accent", &variant.color_accent, errors);
+            validate_color(prefix, "color_success", &variant.color_success, errors);
+            validate_color(prefix, "color_warning", &variant.color_warning, errors);
+            validate_color(prefix, "color_info", &variant.color_info, errors);
+            validate_color(prefix, "color_danger", &variant.color_danger, errors);
+            validate_color(prefix, "color_background", &variant.color_background, errors);
+            validate_color(prefix, "color_foreground", &variant.color_foreground, errors);
+            validate_color(prefix, "color_muted", &variant.color_muted, errors);
+            validate_color(prefix, "color_muted_foreground", &variant.color_muted_foreground, errors);
+        };
+
+        validate_variant("light", &self.light, &mut errors);
+        validate_variant("dark", &self.dark, &mut errors);
+
+        if self.fonts.font_family.trim().is_empty() {
+            errors.insert(
+                "font_family".into(),
+                "Font family is required.".into(),
+            );
+        }
+
+        if self.fonts.font_size_base.trim().is_empty() {
+            errors.insert(
+                "font_size_base".into(),
+                "Base font size is required.".into(),
+            );
+        }
+
+        if self.fonts.font_size_small.trim().is_empty() {
+            errors.insert(
+                "font_size_small".into(),
+                "Small font size is required.".into(),
+            );
+        }
+
+        if self.fonts.font_size_large.trim().is_empty() {
+            errors.insert(
+                "font_size_large".into(),
+                "Large font size is required.".into(),
+            );
+        }
+
+        if self.fonts.line_height.trim().is_empty() {
+            errors.insert(
+                "line_height".into(),
+                "Line height is required.".into(),
+            );
+        }
+
+        if self.domains.admin_subdomain.trim().is_empty() {
+            errors.insert(
+                "admin_subdomain".into(),
+                "Admin subdomain is required.".into(),
+            );
+        }
+
+        if self.domains.patient_subdomain.trim().is_empty() {
+            errors.insert(
+                "patient_subdomain".into(),
+                "Patient subdomain is required.".into(),
+            );
+        }
+
+        if errors.is_empty() {
+            Ok(())
+        } else {
+            Err(ValidationError { errors })
+        }
+    }
+}
+
+pub async fn settings_tenant(
+    app_state: &AppState,
+    tenant_pid: Uuid,
+    data: &Theme,
+    req: &HttpRequest,
+) -> Result<ApiResponse, ApiResponse> {
+    let claims = get_logged_in_user_claims(&req)?;
+
+    if let Err(err) = data.validate() {
+        return Err(ApiResponse::new(500, json!(err)));
+    }
+
+    let api = ApiClient::new();
+    let json_value = json!({
+        "application_id": claims.application_pid,
+        "tenant_id": tenant_pid,
+        "admin_subdomain": data.domains.admin_subdomain,
+        "admin_domain": data.domains.admin_domain,
+        "patient_subdomain": data.domains.patient_subdomain,
+        "patient_domain": data.domains.patient_domain,
+        "branding": {
+            "primary_color": data.light.color_primary,
+            "accent_color": data.light.color_accent,
+            "text_color": data.light.color_foreground,
+            "footer_text_color": data.light.color_muted,
+            "logo_url": data.logo_url,
+            "privacy_url": data.privacy_policy,
+        }
+    });
+
+    let res = get_tenant_application_data(tenant_pid).await?;
+
+    let _response: ApiResponseDTO<()> = if res.data.is_none() {
+        api.call(
+            "tenant_applications/create",
+            &Some(req.clone()),
+            Some(&json_value),
+            Method::POST,
+        )
+        .await
+        .map_err(|err| {
+            log::error!("Failed to create tenant application: {}", err);
+            ApiResponse::new(
+                500,
+                json!({ "message": "Failed to create tenant application" }),
+            )
+        })?
+    } else {
+        api.call(
+            "tenant_applications/update",
+            &Some(req.clone()),
+            Some(&json_value),
+            Method::PUT,
+        )
+        .await
+        .map_err(|err| {
+            log::error!("Failed to update tenant application: {}", err);
+            ApiResponse::new(
+                500,
+                json!({ "message": "Failed to update tenant application" }),
+            )
+        })?
+    };
+
+    let tenant = main::entities::tenants::Entity::find_by_pid(tenant_pid)
+        .filter(main::entities::tenants::Column::DeletedAt.is_null())
+        .one(&app_state.main_db)
+        .await
+        .map_err(|err| {
+            log::error!("Failed to find tenant: {}", err);
+            ApiResponse::new(500, json!({ "message": "Failed to find tenant" }))
+        })?
+        .ok_or(ApiResponse::new(
+            404,
+            json!({ "message": "Tenant not found" }),
+        ))?;
+
+    let mut update_model: main::entities::tenants::ActiveModel = tenant.to_owned().into();
+    let mut changed = false;
+
+    let json_settings = json!({
+        "light": {
+            "color_primary": data.light.color_primary,
+            "color_secondary": data.light.color_secondary,
+            "color_accent": data.light.color_accent,
+            "color_success": data.light.color_success,
+            "color_warning": data.light.color_warning,
+            "color_info": data.light.color_info,
+            "color_danger": data.light.color_danger,
+            "color_background": data.light.color_background,
+            "color_foreground": data.light.color_foreground,
+            "color_muted": data.light.color_muted,
+            "color_muted_foreground": data.light.color_muted_foreground
+        },
+        "dark": {
+            "color_primary": data.dark.color_primary,
+            "color_secondary": data.dark.color_secondary,
+            "color_accent": data.dark.color_accent,
+            "color_success": data.dark.color_success,
+            "color_warning": data.dark.color_warning,
+            "color_info": data.dark.color_info,
+            "color_danger": data.dark.color_danger,
+            "color_background": data.dark.color_background,
+            "color_foreground": data.dark.color_foreground,
+            "color_muted": data.dark.color_muted,
+            "color_muted_foreground": data.dark.color_muted_foreground
+        },
+        "fonts": {
+            "font_family": data.fonts.font_family,
+            "font_size_base": data.fonts.font_size_base,
+            "font_size_small": data.fonts.font_size_small,
+            "font_size_large": data.fonts.font_size_large,
+            "line_height": data.fonts.line_height
+        },
+        "domains": {
+            "admin_subdomain": data.domains.admin_subdomain,
+            "admin_domain": data.domains.admin_domain,
+            "patient_subdomain": data.domains.patient_subdomain,
+            "patient_domain": data.domains.patient_domain
+        },
+        "logo_url": data.logo_url,
+    });
+
+    if tenant.settings.as_ref() != Some(&json_settings) {
+        update_model.settings = Set(Some(json_settings.clone()));
+        changed = true;
+    }
+
+    if !changed {
+        return Err(ApiResponse::new(
+            400,
+            json!({
+                "message": "No updates were made because the data is unchanged."
+            }),
+        ));
+    }
+
+    update_model.updated_at = Set(Utc::now().naive_utc());
+    update_model
+        .update(&app_state.main_db)
+        .await
+        .map_err(|err| {
+            log::error!("Failed to update tenant: {}", err);
+            ApiResponse::new(500, json!({ "message": "Failed to update tenant" }))
+        })?;
+
+    Ok(ApiResponse::new(
+        200,
+        json!({ "message": "Tenant updated successfully" }),
+    ))
+}
+
 #[derive(Deserialize, Debug)]
 pub struct ActivateTenantResponse {
     pub errors: Option<HashMap<String, String>>,
-    pub message: String,
 }
 
 #[derive(Deserialize, Debug)]
@@ -472,7 +773,7 @@ pub async fn set_active_status_tenant(
         "status": data.status,
     });
 
-    let response: ActivateTenantResponse = api
+    let response: ApiResponseDTO<ActivateTenantResponse> = api
         .call(&endpoint, &None, Some(&json_value), Method::POST)
         .await
         .map_err(|err| {
@@ -480,7 +781,7 @@ pub async fn set_active_status_tenant(
             ApiResponse::new(500, json!({ "message": "Failed to update tenant" }))
         })?;
 
-    if let Some(errors) = response.errors {
+    if let Some(errors) = &response.data.as_ref().unwrap().errors {
         return Err(ApiResponse::new(400, json!({ "errors": errors })));
     }
 
@@ -527,7 +828,7 @@ pub async fn destroy_tenant(
     let api = ApiClient::new();
     let endpoint = format!("tenants/soft-delete/{}", tenant.sso_tenant_id);
 
-    let response: SuccessResponse = api
+    let response: ApiResponseDTO<()> = api
         .call(&endpoint, &None, None::<&()>, Method::DELETE)
         .await
         .map_err(|err| {
@@ -578,7 +879,7 @@ pub async fn restore_tenant(
     let api = ApiClient::new();
     let endpoint = format!("tenants/restore/{}", tenant.sso_tenant_id);
 
-    let response: SuccessResponse = api
+    let response: ApiResponseDTO<()> = api
         .call(&endpoint, &None, None::<&()>, Method::POST)
         .await
         .map_err(|err| {
@@ -633,7 +934,7 @@ pub async fn permanently_delete_tenant(
     let api = ApiClient::new();
     let endpoint = format!("tenants/permanent/{}", tenant.sso_tenant_id);
 
-    let response: SuccessResponse = api
+    let response: ApiResponseDTO<()> = api
         .call(&endpoint, &None, None::<&()>, Method::DELETE)
         .await
         .map_err(|err| {

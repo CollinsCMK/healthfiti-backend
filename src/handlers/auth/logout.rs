@@ -4,8 +4,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 
 use crate::{
-    handlers::auth::{phone_verification::SuccessResponse, refresh::RefreshRequest},
-    utils::{api_response::ApiResponse, http_client::ApiClient},
+    handlers::{auth::refresh::RefreshRequest, services::tenants::ApiResponseDTO}, utils::{api_response::ApiResponse, http_client::ApiClient},
 };
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -35,7 +34,7 @@ pub async fn logout(
 
     let api = ApiClient::new();
 
-    let logout: SuccessResponse = api
+    let logout: ApiResponseDTO<()> = api
         .call(&endpoint, &Some(req.clone()), Some(&*data), Method::POST)
         .await
         .map_err(|err| {

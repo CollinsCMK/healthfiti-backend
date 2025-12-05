@@ -6,13 +6,12 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 
 use crate::{
-    handlers::auth::phone_verification::SuccessResponse,
-    utils::{
+    handlers::services::tenants::ApiResponseDTO, utils::{
         api_response::ApiResponse,
         http_client::ApiClient,
         validation::{validate_password, validate_phone_number},
         validator_error::ValidationError,
-    },
+    }
 };
 
 #[derive(Debug, Serialize, Deserialize, Default)]
@@ -58,7 +57,7 @@ async fn change_email(
     }
 
     let api = ApiClient::new();
-    let email: SuccessResponse = api
+    let email: ApiResponseDTO<()> = api
         .call(
             "users/me/email",
             &Some(req.clone()),
@@ -127,7 +126,7 @@ async fn change_phone_number(
     }
 
     let api = ApiClient::new();
-    let phone: SuccessResponse = api
+    let phone: ApiResponseDTO<()> = api
         .call(
             "users/me/phone",
             &Some(req.clone()),
@@ -204,7 +203,7 @@ async fn change_password(
     }
 
     let api = ApiClient::new();
-    let password: SuccessResponse = api
+    let password: ApiResponseDTO<()> = api
         .call(
             "users/me/password",
             &Some(req.clone()),

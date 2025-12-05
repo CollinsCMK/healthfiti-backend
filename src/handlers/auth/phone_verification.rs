@@ -6,9 +6,9 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 use uuid::Uuid;
 
-use crate::utils::{
+use crate::{handlers::services::tenants::ApiResponseDTO, utils::{
     api_response::ApiResponse, http_client::ApiClient, validator_error::ValidationError,
-};
+}};
 
 #[derive(Debug, Serialize, Deserialize)]
 struct VerifyPhoneData {
@@ -48,11 +48,6 @@ impl VerifyPhoneData {
     }
 }
 
-#[derive(Deserialize, Debug)]
-pub struct SuccessResponse {
-    pub message: String,
-}
-
 #[post("/verify_phone")]
 pub async fn verify_phone(
     data: web::Json<VerifyPhoneData>,
@@ -64,7 +59,7 @@ pub async fn verify_phone(
 
     let api = ApiClient::new();
 
-    let verify_phone: SuccessResponse = api
+    let verify_phone: ApiResponseDTO<()> = api
         .call(
             "auth/verify_phone",
             &Some(req.clone()),
