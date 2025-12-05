@@ -1,4 +1,4 @@
-use actix_web::web;
+use actix_web::{web, HttpRequest};
 use uuid::Uuid;
 
 use crate::{
@@ -27,8 +27,9 @@ pub async fn show(
 pub async fn create(
     app_state: web::Data<AppState>,
     data: web::Json<TenantData>,
+    req: HttpRequest,
 ) -> Result<ApiResponse, ApiResponse> {
-    create_tenant(&app_state, &data).await
+    create_tenant(&app_state, &data, &req).await
 }
 
 pub async fn update(

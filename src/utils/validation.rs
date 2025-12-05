@@ -1,4 +1,5 @@
 use regex::Regex;
+use url::Url;
 
 pub fn validate_phone_number(phone_number: &str) -> bool {
     // Remove leading 0 if present
@@ -40,4 +41,23 @@ pub fn validate_password(password: &str) -> bool {
     }
 
     true
+}
+
+pub fn validate_db_url(db_url: &str) -> bool {
+    let re = Regex::new(r"^[a-zA-Z]+://[^:]+:[^@]+@[^/]+/.+$").unwrap();
+
+    if !re.is_match(db_url) {
+        return false;
+    }
+
+    match Url::parse(db_url) {
+        Ok(url) => {
+            url.scheme() != ""
+                && url.username() != ""
+                && url.password().is_some()
+                && url.host_str().is_some()
+                && !url.path().is_empty()
+        }
+        Err(_) => false,
+    }
 }

@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use actix_web::HttpRequest;
 use chrono::{NaiveDateTime, Utc};
 use chrono_tz::Tz;
 use reqwest::Method;
@@ -17,8 +18,7 @@ use crate::{
     },
     handlers::auth::phone_verification::SuccessResponse,
     utils::{
-        api_response::ApiResponse, app_state::AppState, http_client::ApiClient,
-        pagination::PaginationParams, validator_error::ValidationError,
+        api_response::ApiResponse, app_state::AppState, http_client::ApiClient, pagination::PaginationParams, slug::slugify, validation::validate_db_url, validator_error::ValidationError
     },
 };
 
@@ -227,6 +227,8 @@ impl TenantData {
 
         if self.db_url.trim().is_empty() {
             errors.insert("db_url".into(), "Database URL is required.".into());
+        } else if !validate_db_url(&self.db_url) {
+            errors.insert("db_url".into(), "Database URL is invalid.".into());
         }
 
         if self.timezone.trim().is_empty() {
@@ -250,6 +252,7 @@ impl TenantData {
 pub async fn create_tenant(
     app_state: &AppState,
     data: &TenantData,
+    req: &HttpRequest,
 ) -> Result<ApiResponse, ApiResponse> {
     if let Err(err) = data.validate() {
         return Err(ApiResponse::new(500, json!(err)));
@@ -263,14 +266,18 @@ pub async fn create_tenant(
     });
 
     let response: TenantCreateResponse = api
-        .call("tenants/create", &None, Some(&json_value), Method::POST)
+        .call("tenants/create", &Some(req.clone()), Some(&json_value), Method::POST)
         .await
         .map_err(|err| {
             log::error!("Failed to create tenant: {}", err);
             ApiResponse::new(500, json!({ "message": "Failed to create tenant" }))
         })?;
 
+    println!("Response: {:#?}", response);
+
     if let Some(pid) = response.pid {
+        let slug = slugify(&data.name);
+
         main::entities::tenants::ActiveModel {
             sso_tenant_id: Set(pid),
             country: Set(data.country.clone()),
@@ -284,6 +291,7 @@ pub async fn create_tenant(
             contact_phone: Set(data.contact_phone.clone()),
             timezone: Set(data.timezone.clone()),
             currency: Set(data.currency.clone()),
+            slug: Set(slug),
             ..Default::default()
         }
         .insert(&app_state.main_db)

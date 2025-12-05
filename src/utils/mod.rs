@@ -11,3 +11,4 @@ pub mod pagination;
 pub mod permission;
 pub mod validation;
 pub mod validator_error;
+pub mod slug;

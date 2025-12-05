@@ -30,13 +30,6 @@ pub async fn has_permission(permission_name: &str, req: &HttpRequest) -> Result<
             ApiResponse::new(500, json!({ "message": "Failed to check permission" }))
         })?;
 
-    // if response.message {
-    //     return Ok(ApiResponse::new(
-    //         500,
-    //         json!({ "message": response.message }),
-    //     ))
-    // }
-
     Ok(response.has_permission)
 }
 
@@ -60,13 +53,6 @@ pub async fn extract_permissions(
             log::error!("Permission list API error: {}", err);
             ApiResponse::new(500, json!({ "message": "Failed to retrieve permissions" }))
         })?;
-
-    // if response.message {
-    //     return Ok(ApiResponse::new(
-    //         500,
-    //         json!({ "message": response.message }),
-    //     ))
-    // }
 
     Ok(response.has_permission)
 }
