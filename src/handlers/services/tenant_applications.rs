@@ -63,26 +63,6 @@ pub async fn get_all_tenant_applications(
     ))
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct ApplicationData {
-    pub pid: String,
-    pub name: String,
-    pub is_active: bool,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct TenantData {
-    pub pid: String,
-    pub name: String,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct TenantApplicationResponse {
-    tenant_application: TenantApplication,
-    pub application: Option<ApplicationData>,
-    pub tenant: Option<TenantData>,
-}
-
 pub async fn get_tenant_application_data(
     req: &HttpRequest,
 ) -> Result<ApiResponseDTO<TenantApplication>, ApiResponse> {

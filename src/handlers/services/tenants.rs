@@ -44,6 +44,8 @@ pub struct PaginationInfo {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct ApiResponseDTO<T> {
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub errors: Option<HashMap<String, String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub data: Option<T>,
     pub message: String,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -755,11 +757,6 @@ pub async fn settings_tenant(
 }
 
 #[derive(Deserialize, Debug)]
-pub struct ActivateTenantResponse {
-    pub errors: Option<HashMap<String, String>>,
-}
-
-#[derive(Deserialize, Debug)]
 pub struct TenantStatus {
     pub status: String,
 }
@@ -789,7 +786,7 @@ pub async fn set_active_status_tenant(
         "status": data.status,
     });
 
-    let response: ApiResponseDTO<ActivateTenantResponse> = api
+    let response: ApiResponseDTO<()> = api
         .call(&endpoint, &None, Some(&json_value), Method::POST)
         .await
         .map_err(|err| {
@@ -797,7 +794,7 @@ pub async fn set_active_status_tenant(
             ApiResponse::new(500, json!({ "message": "Failed to update tenant" }))
         })?;
 
-    if let Some(errors) = &response.data.as_ref().unwrap().errors {
+    if let Some(errors) = &response.errors {
         return Err(ApiResponse::new(400, json!({ "errors": errors })));
     }
 
