@@ -15,7 +15,8 @@ use crate::{
         migrations::sea_orm::{ActiveModelTrait, ColumnTrait, QueryFilter, Set},
     },
     handlers::{
-        services::tenants::ApiResponseDTO, shared::profile::{get_profile_data, get_user_role_ids}
+        services::tenants::ApiResponseDTO,
+        shared::profile::{get_profile_data, get_user_role_ids},
     },
     utils::{
         api_response::ApiResponse,

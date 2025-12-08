@@ -11,10 +11,12 @@ use crate::{
     db::main::{
         self,
         migrations::sea_orm::{ColumnTrait, QueryFilter},
-    }, handlers::services::tenants::ApiResponseDTO, utils::{
+    },
+    handlers::services::tenants::ApiResponseDTO,
+    utils::{
         api_response::ApiResponse, app_state::AppState, http_client::ApiClient,
         jwt::get_logged_in_user_claims, validator_error::ValidationError,
-    }
+    },
 };
 
 #[derive(Serialize, Deserialize, Default, Debug, Clone)]

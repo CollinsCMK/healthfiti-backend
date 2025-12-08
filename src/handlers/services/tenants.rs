@@ -15,9 +15,13 @@ use crate::{
         migrations::sea_orm::{
             ActiveModelTrait, ColumnTrait, EntityTrait, QueryFilter, Select, Set,
         },
-    }, handlers::services::tenant_applications::get_tenant_application_data, utils::{
-        api_response::ApiResponse, app_state::AppState, http_client::ApiClient, jwt::get_logged_in_user_claims, migrate::run_migrations, pagination::PaginationParams, slug::slugify, validation::validate_db_url, validator_error::ValidationError
-    }
+    },
+    handlers::services::tenant_applications::get_tenant_application_data,
+    utils::{
+        api_response::ApiResponse, app_state::AppState, http_client::ApiClient,
+        jwt::get_logged_in_user_claims, migrate::run_migrations, pagination::PaginationParams,
+        slug::slugify, validation::validate_db_url, validator_error::ValidationError,
+    },
 };
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -47,12 +51,11 @@ pub struct ApiResponseDTO<T> {
 }
 
 pub async fn get_all_tenants(query: &PaginationParams) -> Result<ApiResponse, ApiResponse> {
-    let fetch_all = query.all.unwrap_or(false);
-
     let api = ApiClient::new();
+    
     let mut endpoint = format!(
         "tenants?all={}&page={}&limit={}",
-        fetch_all,
+        query.all.unwrap_or(false),
         query.page.unwrap_or(1),
         query.limit.unwrap_or(10)
     );
@@ -265,7 +268,12 @@ pub async fn create_tenant(
     });
 
     let response: TenantCreateResponse = api
-        .call("tenants/create", &Some(req.clone()), Some(&json_value), Method::POST)
+        .call(
+            "tenants/create",
+            &Some(req.clone()),
+            Some(&json_value),
+            Method::POST,
+        )
         .await
         .map_err(|err| {
             log::error!("Failed to create tenant: {}", err);
@@ -300,12 +308,10 @@ pub async fn create_tenant(
             ApiResponse::new(500, json!({ "message": "Failed to create tenant" }))
         })?;
 
-        run_migrations(&data.db_url)
-            .await
-            .map_err(|err| {
-                log::error!("Failed to run migrations: {}", err);
-                ApiResponse::new(500, json!({ "message": "Failed to run migrations" }))
-            })?;
+        run_migrations(&data.db_url).await.map_err(|err| {
+            log::error!("Failed to run migrations: {}", err);
+            ApiResponse::new(500, json!({ "message": "Failed to run migrations" }))
+        })?;
 
         return Ok(ApiResponse::new(
             200,
@@ -512,28 +518,41 @@ impl Theme {
             }
         }
 
-        let validate_variant = |prefix: &str, variant: &ThemeVariant, errors: &mut HashMap<String, String>| {
-            validate_color(prefix, "color_primary", &variant.color_primary, errors);
-            validate_color(prefix, "color_secondary", &variant.color_secondary, errors);
-            validate_color(prefix, "color_accent", &variant.color_accent, errors);
-            validate_color(prefix, "color_success", &variant.color_success, errors);
-            validate_color(prefix, "color_warning", &variant.color_warning, errors);
-            validate_color(prefix, "color_info", &variant.color_info, errors);
-            validate_color(prefix, "color_danger", &variant.color_danger, errors);
-            validate_color(prefix, "color_background", &variant.color_background, errors);
-            validate_color(prefix, "color_foreground", &variant.color_foreground, errors);
-            validate_color(prefix, "color_muted", &variant.color_muted, errors);
-            validate_color(prefix, "color_muted_foreground", &variant.color_muted_foreground, errors);
-        };
+        let validate_variant =
+            |prefix: &str, variant: &ThemeVariant, errors: &mut HashMap<String, String>| {
+                validate_color(prefix, "color_primary", &variant.color_primary, errors);
+                validate_color(prefix, "color_secondary", &variant.color_secondary, errors);
+                validate_color(prefix, "color_accent", &variant.color_accent, errors);
+                validate_color(prefix, "color_success", &variant.color_success, errors);
+                validate_color(prefix, "color_warning", &variant.color_warning, errors);
+                validate_color(prefix, "color_info", &variant.color_info, errors);
+                validate_color(prefix, "color_danger", &variant.color_danger, errors);
+                validate_color(
+                    prefix,
+                    "color_background",
+                    &variant.color_background,
+                    errors,
+                );
+                validate_color(
+                    prefix,
+                    "color_foreground",
+                    &variant.color_foreground,
+                    errors,
+                );
+                validate_color(prefix, "color_muted", &variant.color_muted, errors);
+                validate_color(
+                    prefix,
+                    "color_muted_foreground",
+                    &variant.color_muted_foreground,
+                    errors,
+                );
+            };
 
         validate_variant("light", &self.light, &mut errors);
         validate_variant("dark", &self.dark, &mut errors);
 
         if self.fonts.font_family.trim().is_empty() {
-            errors.insert(
-                "font_family".into(),
-                "Font family is required.".into(),
-            );
+            errors.insert("font_family".into(), "Font family is required.".into());
         }
 
         if self.fonts.font_size_base.trim().is_empty() {
@@ -558,10 +577,7 @@ impl Theme {
         }
 
         if self.fonts.line_height.trim().is_empty() {
-            errors.insert(
-                "line_height".into(),
-                "Line height is required.".into(),
-            );
+            errors.insert("line_height".into(), "Line height is required.".into());
         }
 
         if self.domains.admin_subdomain.trim().is_empty() {
@@ -616,7 +632,7 @@ pub async fn settings_tenant(
         }
     });
 
-    let res = get_tenant_application_data(tenant_pid).await?;
+    let res = get_tenant_application_data(&req).await?;
 
     let _response: ApiResponseDTO<()> = if res.data.is_none() {
         api.call(

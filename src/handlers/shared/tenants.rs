@@ -3,7 +3,8 @@ use reqwest::Method;
 use serde_json::json;
 
 use crate::{
-    handlers::services::tenants::ApiResponseDTO, utils::{api_response::ApiResponse, http_client::ApiClient},
+    handlers::services::tenants::ApiResponseDTO,
+    utils::{api_response::ApiResponse, http_client::ApiClient},
 };
 
 #[get("/check")]

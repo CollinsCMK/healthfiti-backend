@@ -6,6 +6,7 @@ pub fn config(config: &mut ServiceConfig) {
         web::scope("/admin")
             .configure(routes::admin::patients::config)
             .configure(routes::admin::patient_insurance::config)
-            .configure(routes::admin::tenants::config),
+            .configure(routes::admin::tenants::config)
+            .configure(routes::admin::tenant_applications::config),
     );
 }

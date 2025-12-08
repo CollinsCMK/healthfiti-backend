@@ -6,12 +6,13 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 
 use crate::{
-    handlers::services::tenants::ApiResponseDTO, utils::{
+    handlers::services::tenants::ApiResponseDTO,
+    utils::{
         api_response::ApiResponse,
         http_client::ApiClient,
         validation::{validate_password, validate_phone_number},
         validator_error::ValidationError,
-    }
+    },
 };
 
 #[derive(Debug, Serialize, Deserialize, Default)]

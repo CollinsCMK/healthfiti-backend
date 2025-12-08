@@ -6,9 +6,10 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 use uuid::Uuid;
 
-use crate::{handlers::services::tenants::ApiResponseDTO, utils::{
-    api_response::ApiResponse, http_client::ApiClient, validator_error::ValidationError,
-}};
+use crate::{
+    handlers::services::tenants::ApiResponseDTO,
+    utils::{api_response::ApiResponse, http_client::ApiClient, validator_error::ValidationError},
+};
 
 #[derive(Debug, Serialize, Deserialize)]
 struct VerifyPhoneData {

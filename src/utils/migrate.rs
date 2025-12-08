@@ -1,7 +1,9 @@
 use migration_main::MigratorTrait;
 use serde_json::json;
 use std::{
-    collections::HashMap, process::Command, sync::{Arc, RwLock}
+    collections::HashMap,
+    process::Command,
+    sync::{Arc, RwLock},
 };
 use uuid::Uuid;
 
@@ -75,9 +77,7 @@ pub async fn migrate_tenants(
     Ok(tenant_dbs)
 }
 
-pub async fn run_migrations(
-    db_url: &str,
-) -> Result<ApiResponse, ApiResponse> {
+pub async fn run_migrations(db_url: &str) -> Result<ApiResponse, ApiResponse> {
     let status = Command::new("sea-orm-cli")
         .args(["migrate", "up"])
         .env("DATABASE_URL", db_url)
@@ -88,8 +88,14 @@ pub async fn run_migrations(
         })?;
 
     if !status.success() {
-        return Err(ApiResponse::new(500, json!({ "message": "Migration failed" })));
+        return Err(ApiResponse::new(
+            500,
+            json!({ "message": "Migration failed" }),
+        ));
     }
 
-    Ok(ApiResponse::new(200, json!({ "message": "Migration successful" })))
+    Ok(ApiResponse::new(
+        200,
+        json!({ "message": "Migration successful" }),
+    ))
 }

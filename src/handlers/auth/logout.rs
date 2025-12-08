@@ -4,7 +4,8 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 
 use crate::{
-    handlers::{auth::refresh::RefreshRequest, services::tenants::ApiResponseDTO}, utils::{api_response::ApiResponse, http_client::ApiClient},
+    handlers::{auth::refresh::RefreshRequest, services::tenants::ApiResponseDTO},
+    utils::{api_response::ApiResponse, http_client::ApiClient},
 };
 
 #[derive(Serialize, Deserialize, Debug)]
