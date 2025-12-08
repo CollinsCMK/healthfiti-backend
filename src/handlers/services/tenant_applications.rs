@@ -29,7 +29,7 @@ pub async fn get_all_tenant_applications(
     query: &PaginationParams,
 ) -> Result<ApiResponse, ApiResponse> {
     let api = ApiClient::new();
-    
+
     let mut endpoint = format!(
         "tenant_applications?all={}&page={}&limit={}",
         query.all.unwrap_or(false),

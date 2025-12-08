@@ -8,6 +8,7 @@ pub fn config(config: &mut ServiceConfig) {
             .configure(routes::admin::patient_insurance::config)
             .configure(routes::admin::tenants::config)
             .configure(routes::admin::tenant_applications::config)
-            .configure(routes::admin::users::config),
+            .configure(routes::admin::users::config)
+            .configure(routes::admin::subscription_plans::config),
     );
 }

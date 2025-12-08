@@ -27,7 +27,9 @@ pub fn config(config: &mut web::ServiceConfig) {
             )
             .service(
                 web::resource("/delete/{tenant_id}")
-                    .wrap(Permission::new("soft_delete_tenant_application".to_string()))
+                    .wrap(Permission::new(
+                        "soft_delete_tenant_application".to_string(),
+                    ))
                     .route(web::delete().to(tenant_applications::destroy)),
             )
             .service(

@@ -5,6 +5,7 @@ pub fn config(config: &mut ServiceConfig) {
     config.service(
         web::scope("/tenant")
             .configure(routes::tenant::tenants::config)
-            .configure(routes::tenant::users::config),
+            .configure(routes::tenant::users::config)
+            .configure(routes::tenant::subscription_plans::config),
     );
 }

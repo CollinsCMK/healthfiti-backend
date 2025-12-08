@@ -5,7 +5,10 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 use uuid::Uuid;
 
-use crate::{handlers::{admin::users::UserData, services::tenants::ApiResponseDTO}, utils::{api_response::ApiResponse, http_client::ApiClient, pagination::PaginationParams}};
+use crate::{
+    handlers::{admin::users::UserData, services::tenants::ApiResponseDTO},
+    utils::{api_response::ApiResponse, http_client::ApiClient, pagination::PaginationParams},
+};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct TenantUserDTO {
@@ -44,7 +47,7 @@ pub async fn index(query: web::Query<PaginationParams>) -> Result<ApiResponse, A
             log::error!("Error getting users: {}", err);
             ApiResponse::new(500, json!({ "message": "Failed to get users" }))
         })?;
-        
+
     Ok(ApiResponse::new(
         200,
         json!({
@@ -111,7 +114,7 @@ pub async fn create(data: web::Json<UserData>) -> Result<ApiResponse, ApiRespons
     });
 
     let api = ApiClient::new();
-    
+
     let response: ApiResponseDTO<()> = api
         .call("tenant_users/create", &None, Some(&json_data), Method::POST)
         .await
@@ -123,7 +126,7 @@ pub async fn create(data: web::Json<UserData>) -> Result<ApiResponse, ApiRespons
     if let Some(errors) = &response.errors {
         return Err(ApiResponse::new(400, json!({ "errors": errors })));
     }
-    
+
     Ok(ApiResponse::new(
         200,
         json!({
@@ -134,7 +137,7 @@ pub async fn create(data: web::Json<UserData>) -> Result<ApiResponse, ApiRespons
 
 pub async fn edit(
     path: web::Path<String>,
-    data: web::Json<UserData>
+    data: web::Json<UserData>,
 ) -> Result<ApiResponse, ApiResponse> {
     let json_data = json!({
         "first_name": data.first_name,
@@ -150,9 +153,14 @@ pub async fn edit(
     });
 
     let api = ApiClient::new();
-    
+
     let response: ApiResponseDTO<()> = api
-        .call(&format!("tenant_users/edit/{}", path.into_inner()), &None, Some(&json_data), Method::POST)
+        .call(
+            &format!("tenant_users/edit/{}", path.into_inner()),
+            &None,
+            Some(&json_data),
+            Method::POST,
+        )
         .await
         .map_err(|err| {
             log::error!("Error editing user: {}", err);
@@ -162,7 +170,7 @@ pub async fn edit(
     if let Some(errors) = &response.errors {
         return Err(ApiResponse::new(400, json!({ "errors": errors })));
     }
-    
+
     Ok(ApiResponse::new(
         200,
         json!({
@@ -171,23 +179,29 @@ pub async fn edit(
     ))
 }
 
-pub async fn set_active_status(
-    path: web::Path<String>,
-) -> Result<ApiResponse, ApiResponse> {
+pub async fn set_active_status(path: web::Path<String>) -> Result<ApiResponse, ApiResponse> {
     let api = ApiClient::new();
-    
+
     let response: ApiResponseDTO<()> = api
-        .call(&format!("tenant_users/status/{}", path.into_inner()), &None, None::<&()>, Method::POST)
+        .call(
+            &format!("tenant_users/status/{}", path.into_inner()),
+            &None,
+            None::<&()>,
+            Method::POST,
+        )
         .await
         .map_err(|err| {
             log::error!("Error setting active status for user: {}", err);
-            ApiResponse::new(500, json!({ "message": "Failed to set active status for user" }))
+            ApiResponse::new(
+                500,
+                json!({ "message": "Failed to set active status for user" }),
+            )
         })?;
 
     if let Some(errors) = &response.errors {
         return Err(ApiResponse::new(400, json!({ "errors": errors })));
     }
-    
+
     Ok(ApiResponse::new(
         200,
         json!({
@@ -198,9 +212,14 @@ pub async fn set_active_status(
 
 pub async fn destroy(path: web::Path<String>) -> Result<ApiResponse, ApiResponse> {
     let api = ApiClient::new();
-    
+
     let response: ApiResponseDTO<()> = api
-        .call(&format!("tenant_users/soft-delete/{}", path.into_inner()), &None, None::<&()>, Method::DELETE)
+        .call(
+            &format!("tenant_users/soft-delete/{}", path.into_inner()),
+            &None,
+            None::<&()>,
+            Method::DELETE,
+        )
         .await
         .map_err(|err| {
             log::error!("Error soft deleting user: {}", err);
@@ -210,7 +229,7 @@ pub async fn destroy(path: web::Path<String>) -> Result<ApiResponse, ApiResponse
     if let Some(errors) = &response.errors {
         return Err(ApiResponse::new(400, json!({ "errors": errors })));
     }
-    
+
     Ok(ApiResponse::new(
         200,
         json!({
@@ -221,9 +240,14 @@ pub async fn destroy(path: web::Path<String>) -> Result<ApiResponse, ApiResponse
 
 pub async fn restore(path: web::Path<String>) -> Result<ApiResponse, ApiResponse> {
     let api = ApiClient::new();
-    
+
     let response: ApiResponseDTO<()> = api
-        .call(&format!("tenant_users/restore/{}", path.into_inner()), &None, None::<&()>, Method::POST)
+        .call(
+            &format!("tenant_users/restore/{}", path.into_inner()),
+            &None,
+            None::<&()>,
+            Method::POST,
+        )
         .await
         .map_err(|err| {
             log::error!("Error restoring user: {}", err);
@@ -233,7 +257,7 @@ pub async fn restore(path: web::Path<String>) -> Result<ApiResponse, ApiResponse
     if let Some(errors) = &response.errors {
         return Err(ApiResponse::new(400, json!({ "errors": errors })));
     }
-    
+
     Ok(ApiResponse::new(
         200,
         json!({
@@ -244,9 +268,14 @@ pub async fn restore(path: web::Path<String>) -> Result<ApiResponse, ApiResponse
 
 pub async fn delete_permanently(path: web::Path<String>) -> Result<ApiResponse, ApiResponse> {
     let api = ApiClient::new();
-    
+
     let response: ApiResponseDTO<()> = api
-        .call(&format!("tenant_users/permanent/{}", path.into_inner()), &None, None::<&()>, Method::DELETE)
+        .call(
+            &format!("tenant_users/permanent/{}", path.into_inner()),
+            &None,
+            None::<&()>,
+            Method::DELETE,
+        )
         .await
         .map_err(|err| {
             log::error!("Error deleting user: {}", err);
@@ -256,7 +285,7 @@ pub async fn delete_permanently(path: web::Path<String>) -> Result<ApiResponse, 
     if let Some(errors) = &response.errors {
         return Err(ApiResponse::new(400, json!({ "errors": errors })));
     }
-    
+
     Ok(ApiResponse::new(
         200,
         json!({

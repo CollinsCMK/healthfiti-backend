@@ -63,6 +63,52 @@ pub async fn seed_permissions() -> Result<ApiResponse, ApiResponse> {
             "Allows the user to restore a soft-deleted patient insurance record",
             "Patient Insurances",
         ),
+        // Subscription Plans
+        (
+            "view_all_subscription_plans",
+            "Allows the user to view all subscription plans in the system",
+            "Subscription Plans",
+        ),
+        (
+            "view_subscription_plan",
+            "Allows the user to view a specific subscription plan",
+            "Subscription Plans",
+        ),
+        (
+            "create_subscription_plan",
+            "Allows the user to create a new subscription plan",
+            "Subscription Plans",
+        ),
+        (
+            "update_subscription_plan",
+            "Allows the user to update an existing subscription plan",
+            "Subscription Plans",
+        ),
+        (
+            "activate_or_deactivate_subscription_plan",
+            "Allows the user to activate or deactivate a subscription plan",
+            "Subscription Plans",
+        ),
+        (
+            "delete_subscription_plan",
+            "Permanently deletes a subscription plan",
+            "Subscription Plans",
+        ),
+        (
+            "view_archived_subscription_plans",
+            "Allows the user to view archived/soft-deleted subscription plans",
+            "Subscription Plans",
+        ),
+        (
+            "soft_delete_subscription_plan",
+            "Allows the user to soft-delete a subscription plan",
+            "Subscription Plans",
+        ),
+        (
+            "restore_subscription_plan",
+            "Allows the user to restore a soft-deleted subscription plan",
+            "Subscription Plans",
+        ),
     ];
 
     // Convert default_permissions to Vec of objects expected by /create API

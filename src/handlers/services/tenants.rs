@@ -54,7 +54,7 @@ pub struct ApiResponseDTO<T> {
 
 pub async fn get_all_tenants(query: &PaginationParams) -> Result<ApiResponse, ApiResponse> {
     let api = ApiClient::new();
-    
+
     let mut endpoint = format!(
         "tenants?all={}&page={}&limit={}",
         query.all.unwrap_or(false),
