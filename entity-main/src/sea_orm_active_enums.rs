@@ -20,8 +20,8 @@ pub enum BillingCycle {
     Weekly,
     #[sea_orm(string_value = "monthly")]
     Monthly,
-    #[sea_orm(string_value = "quartely")]
-    Quartely,
+    #[sea_orm(string_value = "quarterly")]
+    Quarterly,
     #[sea_orm(string_value = "yearly")]
     Yearly,
     #[sea_orm(string_value = "custom")]

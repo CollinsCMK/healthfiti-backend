@@ -1,9 +1,6 @@
 use actix_web::web::{self};
 
-use crate::{
-    handlers::tenant::subscription_plans,
-    middlewares::permissions::Permission,
-};
+use crate::{handlers::tenant::subscription_plans, middlewares::permissions::Permission};
 
 pub fn config(config: &mut web::ServiceConfig) {
     config.service(

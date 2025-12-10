@@ -9,4 +9,5 @@ pub struct PaginationParams {
     pub selector: Option<bool>,
     pub columns: Option<String>,
     pub filename: Option<String>,
+    pub expiration: Option<bool>,
 }

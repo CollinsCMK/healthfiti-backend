@@ -14,7 +14,7 @@ impl MigrationTrait for Migration {
                     .values([
                         Alias::new("weekly"),
                         Alias::new("monthly"),
-                        Alias::new("quartely"),
+                        Alias::new("quarterly"),
                         Alias::new("yearly"),
                         Alias::new("custom"),
                     ])
@@ -37,7 +37,7 @@ impl MigrationTrait for Migration {
                     .col(text_null(SubscriptionPlans::Description))
                     .col(decimal_null(SubscriptionPlans::PriceWeekly).decimal_len(10, 2))
                     .col(decimal_null(SubscriptionPlans::PriceMonthly).decimal_len(10, 2))
-                    .col(decimal_null(SubscriptionPlans::PriceQuartely).decimal_len(10, 2))
+                    .col(decimal_null(SubscriptionPlans::PriceQuarterly).decimal_len(10, 2))
                     .col(decimal_null(SubscriptionPlans::PriceYearly).decimal_len(10, 2))
                     .col(integer(SubscriptionPlans::TrialDays).default(7))
                     .col(integer_null(SubscriptionPlans::MaxFacilities))
@@ -52,7 +52,7 @@ impl MigrationTrait for Migration {
                             vec![
                                 Alias::new("weekly"),
                                 Alias::new("monthly"),
-                                Alias::new("quartely"),
+                                Alias::new("quarterly"),
                                 Alias::new("yearly"),
                                 Alias::new("custom"),
                             ],
@@ -121,7 +121,7 @@ enum SubscriptionPlans {
     Description,
     PriceWeekly,
     PriceMonthly,
-    PriceQuartely,
+    PriceQuarterly,
     PriceYearly,
     TrialDays,
     MaxFacilities,

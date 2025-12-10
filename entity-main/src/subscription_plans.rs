@@ -22,7 +22,7 @@ pub struct Model {
     #[sea_orm(column_type = "Decimal(Some((10, 2)))", nullable)]
     pub price_monthly: Option<Decimal>,
     #[sea_orm(column_type = "Decimal(Some((10, 2)))", nullable)]
-    pub price_quartely: Option<Decimal>,
+    pub price_quarterly: Option<Decimal>,
     #[sea_orm(column_type = "Decimal(Some((10, 2)))", nullable)]
     pub price_yearly: Option<Decimal>,
     pub trial_days: i32,

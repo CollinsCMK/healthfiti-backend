@@ -10,10 +10,16 @@ use uuid::Uuid;
 use crate::{
     db::main::{
         self,
-        migrations::sea_orm::{ActiveModelTrait,ColumnTrait, Condition, EntityTrait, FromQueryResult, PaginatorTrait, QueryFilter, QueryOrder, QuerySelect, Set},
         entities::sea_orm_active_enums::BillingCycle,
+        migrations::sea_orm::{
+            ActiveModelTrait, ColumnTrait, Condition, EntityTrait, FromQueryResult, PaginatorTrait,
+            QueryFilter, QueryOrder, QuerySelect, Set,
+        },
     },
-    utils::{api_response::ApiResponse, app_state::AppState, pagination::PaginationParams, permission::has_permission, slug::slugify, validator_error::ValidationError},
+    utils::{
+        api_response::ApiResponse, app_state::AppState, pagination::PaginationParams,
+        permission::has_permission, slug::slugify, validator_error::ValidationError,
+    },
 };
 
 #[derive(FromQueryResult, Debug, Clone)]
@@ -24,7 +30,7 @@ pub struct SubscriptionPlansResultData {
     pub description: Option<String>,
     pub price_weekly: Option<Decimal>,
     pub price_monthly: Option<Decimal>,
-    pub price_quartely: Option<Decimal>,
+    pub price_quarterly: Option<Decimal>,
     pub price_yearly: Option<Decimal>,
     pub trial_days: Option<i32>,
     pub max_facilities: Option<i32>,
@@ -51,7 +57,7 @@ pub async fn index(
     let mut stmt = main::entities::subscription_plans::Entity::find();
 
     if !has_permission("view_archived_subscription_plans", &req).await? {
-        stmt = stmt.filter(main::entities::subscription_plans::Column::IsActive.eq(true));
+        stmt = stmt.filter(main::entities::subscription_plans::Column::DeletedAt.is_null());
     }
 
     if let Some(term) = &query.search {
@@ -60,8 +66,13 @@ pub async fn index(
         let like = format!("%{}%", term);
         stmt = stmt.filter(
             Condition::any()
-                .add(Expr::col(main::entities::subscription_plans::Column::Name).ilike(like.clone()))
-                .add(Expr::col(main::entities::subscription_plans::Column::Description).ilike(like.clone())),
+                .add(
+                    Expr::col(main::entities::subscription_plans::Column::Name).ilike(like.clone()),
+                )
+                .add(
+                    Expr::col(main::entities::subscription_plans::Column::Description)
+                        .ilike(like.clone()),
+                ),
         );
     }
 
@@ -76,7 +87,10 @@ pub async fn index(
             .await
             .map_err(|err| {
                 log::error!("Failed to fetch subscription plans: {}", err);
-                ApiResponse::new(500, json!({ "message": "Failed to fetch subscription plans" }))
+                ApiResponse::new(
+                    500,
+                    json!({ "message": "Failed to fetch subscription plans" }),
+                )
             })?
             .iter()
             .map(|plan| {
@@ -87,11 +101,12 @@ pub async fn index(
             })
             .collect::<Vec<_>>();
 
-        return Ok(ApiResponse::new(200,
+        return Ok(ApiResponse::new(
+            200,
             json!({
                 "subscription_plans": result,
                 "message": "Subscription plans fetched successfully"
-            })
+            }),
         ));
     }
 
@@ -108,7 +123,7 @@ pub async fn index(
         .column(main::entities::subscription_plans::Column::DeletedAt)
         .into_model::<SubscriptionPlansResultData>()
         .paginate(&app_state.main_db, limit);
-    
+
     let total_items = paginator
         .num_items()
         .await
@@ -153,16 +168,16 @@ pub async fn index(
 pub async fn show(
     app_state: web::Data<AppState>,
     req: HttpRequest,
-    path: web::Path<Uuid>,   
-) -> Result<ApiResponse, ApiResponse> { 
+    path: web::Path<Uuid>,
+) -> Result<ApiResponse, ApiResponse> {
     let pid = path.into_inner();
 
     let mut stmt = main::entities::subscription_plans::Entity::find_by_pid(pid);
 
     if !has_permission("view_archived_subscription_plans", &req).await? {
-        stmt = stmt.filter(main::entities::subscription_plans::Column::IsActive.eq(true));
+        stmt = stmt.filter(main::entities::subscription_plans::Column::DeletedAt.is_null());
     }
-    
+
     let subscription_plan = stmt
         .select_only()
         .column(main::entities::subscription_plans::Column::Pid)
@@ -171,7 +186,7 @@ pub async fn show(
         .column(main::entities::subscription_plans::Column::Description)
         .column(main::entities::subscription_plans::Column::PriceWeekly)
         .column(main::entities::subscription_plans::Column::PriceMonthly)
-        .column(main::entities::subscription_plans::Column::PriceQuartely)
+        .column(main::entities::subscription_plans::Column::PriceQuarterly)
         .column(main::entities::subscription_plans::Column::PriceYearly)
         .column(main::entities::subscription_plans::Column::TrialDays)
         .column(main::entities::subscription_plans::Column::MaxFacilities)
@@ -191,9 +206,15 @@ pub async fn show(
         .await
         .map_err(|err| {
             log::error!("Failed to fetch subscription plan: {}", err);
-            ApiResponse::new(500, json!({ "message": "Failed to fetch subscription plan" }))
+            ApiResponse::new(
+                500,
+                json!({ "message": "Failed to fetch subscription plan" }),
+            )
         })?
-        .ok_or(ApiResponse::new(404, json!({ "message": "Subscription plan not found" })))?;
+        .ok_or(ApiResponse::new(
+            404,
+            json!({ "message": "Subscription plan not found" }),
+        ))?;
 
     Ok(ApiResponse::new(
         200,
@@ -205,7 +226,7 @@ pub async fn show(
                 "description": subscription_plan.description,
                 "price_weekly": subscription_plan.price_weekly,
                 "price_monthly": subscription_plan.price_monthly,
-                "price_quartely": subscription_plan.price_quartely,
+                "price_quarterly": subscription_plan.price_quarterly,
                 "price_yearly": subscription_plan.price_yearly,
                 "trial_days": subscription_plan.trial_days,
                 "max_facilities": subscription_plan.max_facilities,
@@ -233,7 +254,7 @@ pub struct CreateSubscriptionPlan {
     pub description: Option<String>,
     pub price_weekly: Option<Decimal>,
     pub price_monthly: Option<Decimal>,
-    pub price_quartely: Option<Decimal>,
+    pub price_quarterly: Option<Decimal>,
     pub price_yearly: Option<Decimal>,
     pub trial_days: i32,
     pub max_facilities: Option<i32>,
@@ -252,10 +273,7 @@ impl CreateSubscriptionPlan {
         let mut errors = HashMap::new();
 
         if self.name.is_empty() {
-            errors.insert(
-                "name".to_string(),
-                "Name is required".to_string(),
-            );
+            errors.insert("name".to_string(), "Name is required".to_string());
         }
 
         if self.trial_days < 0 {
@@ -267,10 +285,13 @@ impl CreateSubscriptionPlan {
 
         if let Some(billing_cycle) = &self.billing_cycle {
             let billing_cycle_lower = billing_cycle.to_lowercase();
-            if !["weekly", "monthly", "quartely", "yearly", "custom"].contains(&billing_cycle_lower.as_str()) {
+            if !["weekly", "monthly", "quarterly", "yearly", "custom"]
+                .contains(&billing_cycle_lower.as_str())
+            {
                 errors.insert(
                     "billing_cycle".into(),
-                    "Billing cycle must be one of: weekly, monthly, quartely, yearly, custom.".into(),
+                    "Billing cycle must be one of: weekly, monthly, quarterly, yearly, custom."
+                        .into(),
                 );
             }
         } else {
@@ -292,10 +313,15 @@ impl CreateSubscriptionPlan {
     }
 
     pub fn get_billing_cycle(&self) -> BillingCycle {
-        match self.billing_cycle.as_ref().map(|s| s.to_lowercase()).as_deref() {
+        match self
+            .billing_cycle
+            .as_ref()
+            .map(|s| s.to_lowercase())
+            .as_deref()
+        {
             Some("weekly") => BillingCycle::Weekly,
             Some("monthly") => BillingCycle::Monthly,
-            Some("quartely") => BillingCycle::Quartely,
+            Some("quarterly") => BillingCycle::Quarterly,
             Some("yearly") => BillingCycle::Yearly,
             Some("custom") => BillingCycle::Custom,
             _ => BillingCycle::Monthly,
@@ -303,10 +329,10 @@ impl CreateSubscriptionPlan {
     }
 }
 
- pub async fn create(
+pub async fn create(
     app_state: web::Data<AppState>,
     data: web::Json<CreateSubscriptionPlan>,
-) -> Result<ApiResponse, ApiResponse> {   
+) -> Result<ApiResponse, ApiResponse> {
     if let Err(err) = data.validate() {
         return Err(ApiResponse::new(500, json!(err)));
     }
@@ -319,7 +345,7 @@ impl CreateSubscriptionPlan {
         description: Set(data.description.clone()),
         price_weekly: Set(data.price_weekly),
         price_monthly: Set(data.price_monthly),
-        price_quartely: Set(data.price_quartely),
+        price_quarterly: Set(data.price_quarterly),
         price_yearly: Set(data.price_yearly),
         trial_days: Set(data.trial_days),
         max_facilities: Set(data.max_facilities),
@@ -333,12 +359,15 @@ impl CreateSubscriptionPlan {
         is_active: Set(data.is_active),
         ..Default::default()
     }
-        .insert(&app_state.main_db)
-        .await
-        .map_err(|err| {
-            log::error!("Failed to create subscription plan: {}", err);
-            ApiResponse::new(500, json!({ "message": "Failed to create subscription plan" }))
-        })?;
+    .insert(&app_state.main_db)
+    .await
+    .map_err(|err| {
+        log::error!("Failed to create subscription plan: {}", err);
+        ApiResponse::new(
+            500,
+            json!({ "message": "Failed to create subscription plan" }),
+        )
+    })?;
 
     Ok(ApiResponse::new(
         201,
@@ -352,7 +381,7 @@ pub async fn edit(
     app_state: web::Data<AppState>,
     data: web::Json<CreateSubscriptionPlan>,
     path: web::Path<Uuid>,
-) -> Result<ApiResponse, ApiResponse> {   
+) -> Result<ApiResponse, ApiResponse> {
     if let Err(err) = data.validate() {
         return Err(ApiResponse::new(500, json!(err)));
     }
@@ -365,11 +394,18 @@ pub async fn edit(
         .await
         .map_err(|err| {
             log::error!("Failed to find subscription plan: {}", err);
-            ApiResponse::new(500, json!({ "message": "Failed to find subscription plan" }))
+            ApiResponse::new(
+                500,
+                json!({ "message": "Failed to find subscription plan" }),
+            )
         })?
-        .ok_or(ApiResponse::new(404, json!({ "message": "Subscription plan not found" })))?;
+        .ok_or(ApiResponse::new(
+            404,
+            json!({ "message": "Subscription plan not found" }),
+        ))?;
 
-    let mut update_model: main::entities::subscription_plans::ActiveModel = subscription_plan.to_owned().into();
+    let mut update_model: main::entities::subscription_plans::ActiveModel =
+        subscription_plan.to_owned().into();
     let mut changed = false;
 
     if data.name != subscription_plan.name {
@@ -392,8 +428,8 @@ pub async fn edit(
         changed = true;
     }
 
-    if data.price_quartely != subscription_plan.price_quartely {
-        update_model.price_quartely = Set(data.price_quartely);
+    if data.price_quarterly != subscription_plan.price_quarterly {
+        update_model.price_quarterly = Set(data.price_quarterly);
         changed = true;
     }
 
@@ -460,16 +496,19 @@ pub async fn edit(
             }),
         ));
     }
-    
+
     update_model.updated_at = Set(Utc::now().naive_utc());
     update_model
         .update(&app_state.main_db)
         .await
         .map_err(|err| {
             log::error!("Failed to update subscription plan: {}", err);
-            ApiResponse::new(500, json!({ "message": "Failed to update subscription plan" }))
+            ApiResponse::new(
+                500,
+                json!({ "message": "Failed to update subscription plan" }),
+            )
         })?;
-    
+
     Ok(ApiResponse::new(
         200,
         json!({
@@ -481,7 +520,7 @@ pub async fn edit(
 pub async fn set_active_status(
     app_state: web::Data<AppState>,
     path: web::Path<Uuid>,
-) -> Result<ApiResponse, ApiResponse> {   
+) -> Result<ApiResponse, ApiResponse> {
     let pid = path.into_inner();
 
     let subscription_plan = main::entities::subscription_plans::Entity::find_by_pid(pid)
@@ -490,11 +529,18 @@ pub async fn set_active_status(
         .await
         .map_err(|err| {
             log::error!("Failed to find subscription plan: {}", err);
-            ApiResponse::new(500, json!({ "message": "Failed to find subscription plan" }))
+            ApiResponse::new(
+                500,
+                json!({ "message": "Failed to find subscription plan" }),
+            )
         })?
-        .ok_or(ApiResponse::new(404, json!({ "message": "Subscription plan not found" })))?;
+        .ok_or(ApiResponse::new(
+            404,
+            json!({ "message": "Subscription plan not found" }),
+        ))?;
 
-    let mut update_model: main::entities::subscription_plans::ActiveModel = subscription_plan.to_owned().into();
+    let mut update_model: main::entities::subscription_plans::ActiveModel =
+        subscription_plan.to_owned().into();
     let is_active = subscription_plan.is_active;
     let new_status = !is_active;
 
@@ -505,9 +551,12 @@ pub async fn set_active_status(
         .await
         .map_err(|err| {
             log::error!("Failed to update subscription plan: {}", err);
-            ApiResponse::new(500, json!({ "message": "Failed to update subscription plan" }))
+            ApiResponse::new(
+                500,
+                json!({ "message": "Failed to update subscription plan" }),
+            )
         })?;
-    
+
     Ok(ApiResponse::new(
         200,
         json!({
@@ -519,7 +568,7 @@ pub async fn set_active_status(
 pub async fn destroy(
     app_state: web::Data<AppState>,
     path: web::Path<Uuid>,
-) -> Result<ApiResponse, ApiResponse> {   
+) -> Result<ApiResponse, ApiResponse> {
     let pid = path.into_inner();
 
     let subscription_plan = main::entities::subscription_plans::Entity::find_by_pid(pid)
@@ -528,11 +577,18 @@ pub async fn destroy(
         .await
         .map_err(|err| {
             log::error!("Failed to find subscription plan: {}", err);
-            ApiResponse::new(500, json!({ "message": "Failed to find subscription plan" }))
+            ApiResponse::new(
+                500,
+                json!({ "message": "Failed to find subscription plan" }),
+            )
         })?
-        .ok_or(ApiResponse::new(404, json!({ "message": "Subscription plan not found" })))?;
+        .ok_or(ApiResponse::new(
+            404,
+            json!({ "message": "Subscription plan not found" }),
+        ))?;
 
-    let mut update_model: main::entities::subscription_plans::ActiveModel = subscription_plan.to_owned().into();
+    let mut update_model: main::entities::subscription_plans::ActiveModel =
+        subscription_plan.to_owned().into();
     update_model.deleted_at = Set(Some(Utc::now().naive_utc()));
     update_model.updated_at = Set(Utc::now().naive_utc());
     update_model
@@ -540,9 +596,12 @@ pub async fn destroy(
         .await
         .map_err(|err| {
             log::error!("Failed to update subscription plan: {}", err);
-            ApiResponse::new(500, json!({ "message": "Failed to update subscription plan" }))
+            ApiResponse::new(
+                500,
+                json!({ "message": "Failed to update subscription plan" }),
+            )
         })?;
-    
+
     Ok(ApiResponse::new(
         200,
         json!({
@@ -554,7 +613,7 @@ pub async fn destroy(
 pub async fn restore(
     app_state: web::Data<AppState>,
     path: web::Path<Uuid>,
-) -> Result<ApiResponse, ApiResponse> {   
+) -> Result<ApiResponse, ApiResponse> {
     let pid = path.into_inner();
 
     let subscription_plan = main::entities::subscription_plans::Entity::find_by_pid(pid)
@@ -563,11 +622,18 @@ pub async fn restore(
         .await
         .map_err(|err| {
             log::error!("Failed to find subscription plan: {}", err);
-            ApiResponse::new(500, json!({ "message": "Failed to find subscription plan" }))
+            ApiResponse::new(
+                500,
+                json!({ "message": "Failed to find subscription plan" }),
+            )
         })?
-        .ok_or(ApiResponse::new(404, json!({ "message": "Subscription plan not found" })))?;
+        .ok_or(ApiResponse::new(
+            404,
+            json!({ "message": "Subscription plan not found" }),
+        ))?;
 
-    let mut update_model: main::entities::subscription_plans::ActiveModel = subscription_plan.to_owned().into();
+    let mut update_model: main::entities::subscription_plans::ActiveModel =
+        subscription_plan.to_owned().into();
     update_model.deleted_at = Set(None);
     update_model.updated_at = Set(Utc::now().naive_utc());
     update_model
@@ -575,9 +641,12 @@ pub async fn restore(
         .await
         .map_err(|err| {
             log::error!("Failed to update subscription plan: {}", err);
-            ApiResponse::new(500, json!({ "message": "Failed to update subscription plan" }))
+            ApiResponse::new(
+                500,
+                json!({ "message": "Failed to update subscription plan" }),
+            )
         })?;
-    
+
     Ok(ApiResponse::new(
         200,
         json!({
@@ -589,7 +658,7 @@ pub async fn restore(
 pub async fn delete_permanently(
     app_state: web::Data<AppState>,
     path: web::Path<Uuid>,
-) -> Result<ApiResponse, ApiResponse> {   
+) -> Result<ApiResponse, ApiResponse> {
     let pid = path.into_inner();
 
     let subscription_plan = main::entities::subscription_plans::Entity::find_by_pid(pid)
@@ -597,16 +666,25 @@ pub async fn delete_permanently(
         .await
         .map_err(|err| {
             log::error!("Failed to find subscription plan: {}", err);
-            ApiResponse::new(500, json!({ "message": "Failed to find subscription plan" }))
+            ApiResponse::new(
+                500,
+                json!({ "message": "Failed to find subscription plan" }),
+            )
         })?
-        .ok_or(ApiResponse::new(404, json!({ "message": "Subscription plan not found" })))?;
+        .ok_or(ApiResponse::new(
+            404,
+            json!({ "message": "Subscription plan not found" }),
+        ))?;
 
     let result = main::entities::subscription_plans::Entity::delete_by_id(subscription_plan.id)
         .exec(&app_state.main_db)
         .await
         .map_err(|err| {
             log::error!("Failed to delete subscription plan: {}", err);
-            ApiResponse::new(500, json!({ "message": "Failed to delete subscription plan" }))
+            ApiResponse::new(
+                500,
+                json!({ "message": "Failed to delete subscription plan" }),
+            )
         })?;
 
     if result.rows_affected == 0 {
@@ -615,7 +693,7 @@ pub async fn delete_permanently(
             json!({ "message": "Subscription plan not found" }),
         ));
     }
-    
+
     Ok(ApiResponse::new(
         200,
         json!({

@@ -1,9 +1,6 @@
 use actix_web::web::{self};
 
-use crate::{
-    handlers::admin::subscription_plans,
-    middlewares::permissions::Permission,
-};
+use crate::{handlers::admin::subscription_plans, middlewares::permissions::Permission};
 
 pub fn config(config: &mut web::ServiceConfig) {
     config.service(
@@ -30,7 +27,9 @@ pub fn config(config: &mut web::ServiceConfig) {
             )
             .service(
                 web::resource("/status/{pid}")
-                    .wrap(Permission::new("activate_or_deactivate_subscription_plan".to_string()))
+                    .wrap(Permission::new(
+                        "activate_or_deactivate_subscription_plan".to_string(),
+                    ))
                     .route(web::patch().to(subscription_plans::set_active_status)),
             )
             .service(

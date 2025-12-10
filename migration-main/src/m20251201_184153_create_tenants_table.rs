@@ -47,6 +47,7 @@ impl MigrationTrait for Migration {
                             .default(SimpleExpr::Custom("gen_random_uuid()".into())),
                     )
                     .col(uuid_uniq(Tenants::SsoTenantId))
+                    .col(string_uniq(Tenants::Name).string_len(100))
                     .col(string_uniq(Tenants::Slug).string_len(100))
                     .col(string_null(Tenants::Country).string_len(100))
                     .col(string_null(Tenants::County).string_len(100))
@@ -145,6 +146,7 @@ enum Tenants {
     Id,
     Pid,
     SsoTenantId,
+    Name,
     Slug,
     Country,
     County,

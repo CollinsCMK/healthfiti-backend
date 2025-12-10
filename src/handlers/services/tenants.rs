@@ -289,6 +289,8 @@ pub async fn create_tenant(
 
         main::entities::tenants::ActiveModel {
             sso_tenant_id: Set(pid),
+            name: Set(data.name.clone()),
+            slug: Set(slug),
             country: Set(data.country.clone()),
             county: Set(data.county.clone()),
             city: Set(data.city.clone()),
@@ -300,7 +302,6 @@ pub async fn create_tenant(
             contact_phone: Set(data.contact_phone.clone()),
             timezone: Set(data.timezone.clone()),
             currency: Set(data.currency.clone()),
-            slug: Set(slug),
             ..Default::default()
         }
         .insert(&app_state.main_db)
@@ -368,6 +369,11 @@ pub async fn edit_tenant(
     // if response.message {
     let mut update_model: main::entities::tenants::ActiveModel = tenant.to_owned().into();
     let mut changed = false;
+
+    if data.name != tenant.name {
+        update_model.name = Set(data.name.clone());
+        changed = true;
+    }
 
     if data.country != tenant.country {
         update_model.country = Set(data.country.clone());

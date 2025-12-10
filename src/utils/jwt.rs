@@ -77,3 +77,35 @@ pub async fn get_patient_id(
 
     Ok((patient_id, patient_pid))
 }
+
+pub async fn get_tenant_id(
+    req: &HttpRequest,
+    app_state: &web::Data<AppState>,
+) -> Result<(i32, Uuid, Uuid), ApiResponse> {
+    let claims = get_logged_in_user_claims(&req)?;
+
+    let mut stmt = main::entities::tenants::Entity::find()
+        .filter(main::entities::tenants::Column::DeletedAt.is_null());
+
+    if let Some(tenant_pid) = claims.tenant_pid {
+        stmt = stmt.filter(main::entities::tenants::Column::Pid.eq(tenant_pid));
+    } else {
+        return Err(ApiResponse::new(401, json!({ "message": "Unauthorized" })));
+    }
+
+    let (tenant_id, tenant_pid, tenant_sso_id) = stmt
+        .select_only()
+        .column(main::entities::tenants::Column::Id)
+        .column(main::entities::tenants::Column::Pid)
+        .column(main::entities::tenants::Column::SsoTenantId)
+        .into_tuple::<(i32, Uuid, Uuid)>()
+        .one(&app_state.main_db)
+        .await
+        .map_err(|err| {
+            log::error!("Failed to fetch tenant id: {}", err);
+            ApiResponse::new(500, json!({ "message": "Failed to fetch tenant id" }))
+        })?
+        .ok_or_else(|| ApiResponse::new(404, json!({ "message": "Tenant not found" })))?;
+
+    Ok((tenant_id, tenant_pid, tenant_sso_id))
+}

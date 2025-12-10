@@ -11,8 +11,7 @@ use aws_credential_types::Credentials;
 use aws_sdk_s3::{Client, Config};
 
 use crate::{
-    db::main,
-    utils::{app_state::AppState, message_queue::init_message_queue, migrate::migrate_tenants},
+    cron_jobs::all::init_cron_jobs, db::main, utils::{app_state::AppState, message_queue::init_message_queue, migrate::migrate_tenants}
 };
 
 mod db;
@@ -22,6 +21,7 @@ mod middlewares;
 mod routes;
 mod seeders;
 mod utils;
+mod cron_jobs;
 
 #[derive(Debug)]
 struct MainError {
@@ -112,6 +112,10 @@ async fn main() -> Result<(), MainError> {
     })?;
 
     let message_queue = init_message_queue(&redis_url);
+
+    init_cron_jobs(&main_db).await.map_err(|err| MainError {
+        message: err.to_string(),
+    })?;
 
     let backend = InMemoryBackend::builder().build();
 

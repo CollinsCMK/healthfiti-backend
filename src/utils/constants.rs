@@ -28,6 +28,10 @@ lazy_static! {
     pub static ref SSO_BASE_URL: String = sso_base_url();
     pub static ref SSO_CLIENT_ID: String = sso_client_id();
     pub static ref SSO_CLIENT_SECRET: String = sso_client_secret();
+    pub static ref MPESA_BASE_URL: String = mpesa_base_url();
+    pub static ref MPESA_CONSUMER_KEY: String = mpesa_consumer_key();
+    pub static ref MPESA_CONSUMER_SECRET: String = mpesa_consumer_secret();
+    pub static ref MPESA_SHORTCODE: String = mpesa_shortcode();
 }
 
 fn set_app_name() -> String {
@@ -177,4 +181,24 @@ fn sso_client_secret() -> String {
     dotenv::dotenv().ok();
     env::var("SSO_CLIENT_SECRET")
         .expect("Environment variable 'SSO_CLIENT_SECRET' is required but not set.")
+}
+
+fn mpesa_base_url() -> String {
+    dotenv::dotenv().ok();
+    env::var("MPESA_BASE_URL").expect("Environment variable 'MPESA_BASE_URL' is required but not set.")
+}
+
+fn mpesa_consumer_key() -> String {
+    dotenv::dotenv().ok();
+    env::var("MPESA_CONSUMER_KEY").expect("Environment variable 'MPESA_CONSUMER_KEY' is required but not set.")
+}
+
+fn mpesa_consumer_secret() -> String {
+    dotenv::dotenv().ok();
+    env::var("MPESA_CONSUMER_SECRET").expect("Environment variable 'MPESA_CONSUMER_SECRET' is required but not set.")
+}
+
+fn mpesa_shortcode() -> String {
+    dotenv::dotenv().ok();
+    env::var("MPESA_SHORTCODE").expect("Environment variable 'MPESA_SHORTCODE' is required but not set.")
 }

@@ -16,6 +16,8 @@ pub struct Model {
     #[sea_orm(unique)]
     pub sso_tenant_id: Uuid,
     #[sea_orm(unique)]
+    pub name: String,
+    #[sea_orm(unique)]
     pub slug: String,
     pub country: Option<String>,
     pub county: Option<String>,

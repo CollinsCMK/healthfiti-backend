@@ -12,3 +12,6 @@ pub mod permission;
 pub mod slug;
 pub mod validation;
 pub mod validator_error;
+pub mod mpesa;
+pub mod paypal;
+pub mod stripe;
