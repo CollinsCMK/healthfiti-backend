@@ -11,6 +11,7 @@ pub fn config(config: &mut ServiceConfig) {
             .configure(routes::admin::tenant_applications::config)
             .configure(routes::admin::users::config)
             .configure(routes::admin::subscription_plans::config)
-            .configure(routes::admin::payments::config),
+            .configure(routes::admin::payments::config)
+            .configure(routes::admin::subscriptions::config),
     );
 }

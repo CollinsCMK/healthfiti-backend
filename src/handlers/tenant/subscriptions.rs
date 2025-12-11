@@ -4,7 +4,7 @@ use crate::{
     AppState,
     db::main::{
         self,
-        entities::sea_orm_active_enums::{BillingCycle, SubscriptionStatus},
+        entities::sea_orm_active_enums::SubscriptionStatus,
         migrations::sea_orm::{
             ActiveModelTrait, ColumnTrait, Condition, EntityTrait, PaginatorTrait, QueryFilter,
             QueryOrder, QuerySelect, Set,
@@ -17,7 +17,7 @@ use crate::{
     },
 };
 use actix_web::{HttpRequest, web};
-use chrono::{Duration, NaiveDateTime, Utc};
+use chrono::{Duration, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use uuid::Uuid;
@@ -153,6 +153,86 @@ pub async fn index(
     ))
 }
 
+pub async fn show(
+    app_state: web::Data<AppState>,
+    path: web::Path<Uuid>,
+    req: HttpRequest,
+) -> Result<ApiResponse, ApiResponse> {
+    let (tenant_id, _, _) = get_tenant_id(&req, &app_state).await?;
+    let pid = path.into_inner();
+
+    let mut stmt = main::entities::subscriptions::Entity::find_by_pid(pid)
+        .filter(main::entities::subscriptions::Column::TenantId.eq(tenant_id));
+
+    if !has_permission("view_archived_subscriptions", &req).await? {
+        stmt = stmt.filter(main::entities::subscriptions::Column::DeletedAt.is_null());
+    }
+
+    let subscription = stmt
+        .find_also_related(main::entities::subscription_plans::Entity)
+        .select_only()
+        .column(main::entities::subscriptions::Column::Pid)
+        .column(main::entities::subscriptions::Column::TenantId)
+        .column(main::entities::subscriptions::Column::PlanId)
+        .column(main::entities::subscription_plans::Column::Name)
+        .column(main::entities::subscriptions::Column::Status)
+        .column(main::entities::subscriptions::Column::CurrentPeriodStart)
+        .column(main::entities::subscriptions::Column::CurrentPeriodEnd)
+        .column(main::entities::subscriptions::Column::CancelAtPeriodEnd)
+        .column(main::entities::subscriptions::Column::CancelledAt)
+        .column(main::entities::subscriptions::Column::CancellationReason)
+        .column(main::entities::subscriptions::Column::CustomPrice)
+        .column(main::entities::subscriptions::Column::TrialDays)
+        .column(main::entities::subscriptions::Column::MaxFacilities)
+        .column(main::entities::subscriptions::Column::MaxUsers)
+        .column(main::entities::subscriptions::Column::MaxPatientsPerMonth)
+        .column(main::entities::subscriptions::Column::StorageGb)
+        .column(main::entities::subscriptions::Column::ApiRateLimitPerHour)
+        .column(main::entities::subscriptions::Column::CreatedAt)
+        .column(main::entities::subscriptions::Column::UpdatedAt)
+        .into_model::<SubscriptionDTO, PlanDTO>()
+        .one(&app_state.main_db)
+        .await
+        .map_err(|err| {
+            log::error!("Failed to fetch subscription: {}", err);
+            ApiResponse::new(500, json!({ "message": "Failed to fetch subscription" }))
+        })?
+        .ok_or(ApiResponse::new(
+            404,
+            json!({ "message": "Subscription not found" }),
+        ))?;
+
+    let (sub, plan) = subscription;
+
+    Ok(ApiResponse::new(
+        200,
+        json!({
+            "subscription": {
+                "pid": sub.pid,
+                "tenant_id": sub.tenant_id,
+                "plan_id": sub.plan_id,
+                "plan_name": plan.as_ref().map(|p| p.plan_name.clone()),
+                "status": sub.status,
+                "current_period_start": sub.current_period_start,
+                "current_period_end": sub.current_period_end,
+                "cancel_at_period_end": sub.cancel_at_period_end,
+                "cancelled_at": sub.cancelled_at,
+                "cancellation_reason": sub.cancellation_reason,
+                "custom_price": sub.custom_price,
+                "trial_days": sub.trial_days,
+                "max_facilities": sub.max_facilities,
+                "max_users": sub.max_users,
+                "max_patients_per_month": sub.max_patients_per_month,
+                "storage_gb": sub.storage_gb,
+                "api_rate_limit_per_hour": sub.api_rate_limit_per_hour,
+                "created_at": sub.created_at,
+                "updated_at": sub.updated_at,
+            },
+            "message": "Subscription fetched successfully",
+        }),
+    ))
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 #[serde(default)]
 pub struct CreateSubscriptionDTO {
@@ -178,26 +258,16 @@ impl CreateSubscriptionDTO {
     }
 }
 
-pub fn compute_period_end(
-    start: NaiveDateTime,
-    cycle: &BillingCycle,
-    custom_days: Option<i32>,
-) -> NaiveDateTime {
-    match cycle {
-        BillingCycle::Weekly => start + Duration::weeks(1),
-        BillingCycle::Monthly => start + Duration::days(30),
-        BillingCycle::Quarterly => start + Duration::days(90),
-        BillingCycle::Yearly => start + Duration::days(365),
-        BillingCycle::Custom => start + Duration::days(custom_days.unwrap_or(0) as i64),
-    }
-}
-
 pub async fn trial(
     app_state: web::Data<AppState>,
     data: web::Json<CreateSubscriptionDTO>,
     req: HttpRequest,
 ) -> Result<ApiResponse, ApiResponse> {
     let (tenant_id, _, _) = get_tenant_id(&req, &app_state).await?;
+
+    if let Err(err) = data.validate() {
+        return Err(ApiResponse::new(400, json!(err)));
+    }
 
     let start = Utc::now().naive_utc();
 
@@ -226,98 +296,9 @@ pub async fn trial(
     ))
 }
 
-pub async fn create(
-    app_state: web::Data<AppState>,
-    data: web::Json<CreateSubscriptionDTO>,
-    req: HttpRequest,
-) -> Result<ApiResponse, ApiResponse> {
-    let (tenant_id, _, _) = get_tenant_id(&req, &app_state).await?;
-
-    let plan = main::entities::subscription_plans::Entity::find_by_id(data.plan_id)
-        .filter(main::entities::subscription_plans::Column::DeletedAt.is_null())
-        .one(&app_state.main_db)
-        .await
-        .map_err(|err| {
-            log::error!("Failed to fetch subscription plan: {}", err);
-            ApiResponse::new(
-                500,
-                json!({ "message": "Failed to fetch subscription plan" }),
-            )
-        })?
-        .ok_or(ApiResponse::new(
-            404,
-            json!({ "message": "Subscription plan not found" }),
-        ))?;
-
-    let start = Utc::now().naive_utc();
-
-    let end = compute_period_end(start, &plan.billing_cycle, None);
-
-    let existing_sub = main::entities::subscriptions::Entity::find()
-        .filter(main::entities::subscriptions::Column::TenantId.eq(tenant_id))
-        .one(&app_state.main_db)
-        .await
-        .map_err(|err| {
-            log::error!("Failed to fetch subscription: {}", err);
-            ApiResponse::new(500, json!({ "message": err.to_string() }))
-        })?;
-
-    if let Some(existing) = existing_sub.clone() {
-        if existing.status == SubscriptionStatus::Active
-            || existing.status == SubscriptionStatus::Trial
-        {
-            return Err(ApiResponse::new(
-                409,
-                json!({ "message": "Tenant already has a subscription" }),
-            ));
-        }
-    }
-
-    let give_trial = existing_sub.is_none() && plan.trial_days > 0;
-
-    let status = if give_trial {
-        SubscriptionStatus::Trial
-    } else {
-        SubscriptionStatus::Active
-    };
-
-    main::entities::subscriptions::ActiveModel {
-        tenant_id: Set(tenant_id),
-        plan_id: Set(plan.id),
-        status: Set(status),
-        current_period_start: Set(Some(start)),
-        current_period_end: Set(Some(end)),
-        trial_days: Set(Some(plan.trial_days)),
-        max_facilities: Set(plan.max_facilities),
-        max_patients_per_month: Set(plan.max_patients_per_month),
-        storage_gb: Set(plan.storage_gb),
-        api_rate_limit_per_hour: Set(plan.api_rate_limit_per_hour),
-        ..Default::default()
-    }
-    .insert(&app_state.main_db)
-    .await
-    .map_err(|err| ApiResponse::new(500, json!({ "message": err.to_string() })))?;
-
-    Ok(ApiResponse::new(
-        201,
-        json!({ "message": "Subscription created successfully" }),
-    ))
-}
-
-pub fn compute_period_duration(cycle: &BillingCycle, custom_days: Option<i32>) -> Duration {
-    match cycle {
-        BillingCycle::Weekly => Duration::days(7),
-        BillingCycle::Monthly => Duration::days(30),
-        BillingCycle::Quarterly => Duration::days(90),
-        BillingCycle::Yearly => Duration::days(365),
-        BillingCycle::Custom => Duration::days(custom_days.unwrap_or(0) as i64),
-    }
-}
-
-pub async fn update(
+pub async fn cancel(
     app_state: web::Data<AppState>,
     req: HttpRequest,
-    data: web::Json<CreateSubscriptionDTO>,
     path: web::Path<Uuid>,
 ) -> Result<ApiResponse, ApiResponse> {
     let (tenant_id, _, _) = get_tenant_id(&req, &app_state).await?;
@@ -337,43 +318,10 @@ pub async fn update(
             json!({ "message": "Subscription not found" }),
         ))?;
 
-    let plan = main::entities::subscription_plans::Entity::find_by_id(data.plan_id)
-        .filter(main::entities::subscription_plans::Column::DeletedAt.is_null())
-        .one(&app_state.main_db)
-        .await
-        .map_err(|err| {
-            log::error!("Failed to fetch subscription plan: {}", err);
-            ApiResponse::new(
-                500,
-                json!({ "message": "Failed to fetch subscription plan" }),
-            )
-        })?
-        .ok_or(ApiResponse::new(
-            404,
-            json!({ "message": "Subscription plan not found" }),
-        ))?;
-
-    let start = Utc::now().naive_utc();
-
-    let current_end = subscription.current_period_end.unwrap_or(start);
-    let new_end = if current_end > start {
-        current_end + compute_period_duration(&plan.billing_cycle, None)
-    } else {
-        start + compute_period_duration(&plan.billing_cycle, None)
-    };
-
     let mut update_model: main::entities::subscriptions::ActiveModel =
         subscription.to_owned().into();
-    update_model.plan_id = Set(plan.id);
-    update_model.status = Set(SubscriptionStatus::Active);
-    update_model.current_period_start = Set(Some(start));
-    update_model.current_period_end = Set(Some(new_end));
-    update_model.trial_days = Set(Some(plan.trial_days));
-    update_model.max_facilities = Set(plan.max_facilities);
-    update_model.max_patients_per_month = Set(plan.max_patients_per_month);
-    update_model.storage_gb = Set(plan.storage_gb);
-    update_model.api_rate_limit_per_hour = Set(plan.api_rate_limit_per_hour);
-
+    update_model.status = Set(SubscriptionStatus::Cancelled);
+    update_model.updated_at = Set(Utc::now().naive_utc());
     update_model
         .update(&app_state.main_db)
         .await

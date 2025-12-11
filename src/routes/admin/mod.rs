@@ -6,3 +6,4 @@ pub mod tenant_applications;
 pub mod tenants;
 pub mod users;
 pub mod payments;
+pub mod subscriptions;

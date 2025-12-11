@@ -160,6 +160,37 @@ pub async fn seed_permissions() -> Result<ApiResponse, ApiResponse> {
             "Allows the user to restore a soft-deleted payment transaction",
             "Payment Transactions",
         ),
+        // Subscriptions
+        (
+            "view_all_subscriptions",
+            "Allows the user to view all subscriptions in the system",
+            "Subscriptions",
+        ),
+        (
+            "view_subscription",
+            "Allows the user to view a specific subscription",
+            "Subscriptions",
+        ),
+        (
+            "activate_or_deactivate_subscription",
+            "Allows the user to activate or deactivate a subscription",
+            "Subscriptions",
+        ),
+        (
+            "view_archived_subscriptions",
+            "Allows the user to view archived/soft-deleted subscriptions",
+            "Subscriptions",
+        ),
+        (
+            "trial_subscription",
+            "Grants the user temporary access to subscription features for evaluation purposes.",
+            "Subscriptions",
+        ),
+        (
+            "cancel_subscription",
+            "Allows the user to cancel a subscription",
+            "Subscriptions",
+        ),
     ];
 
     // Convert default_permissions to Vec of objects expected by /create API

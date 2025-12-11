@@ -328,7 +328,6 @@ impl SubscriptionStatusData {
 pub async fn set_active_status(
     app_state: web::Data<AppState>,
     path: web::Path<Uuid>,
-    req: HttpRequest,
     data: web::Json<SubscriptionStatusData>,
 ) -> Result<ApiResponse, ApiResponse> {
     if let Err(err) = data.validate() {

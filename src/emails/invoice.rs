@@ -33,7 +33,7 @@ pub async fn send_invoice_email(
         accent_color,
         text_color,
         footer_text_color,
-    ) = email_configs(app_state.clone(), domain).await?;
+    ) = email_configs(app_state, domain).await?;
 
     let year = Utc::now().year();
 

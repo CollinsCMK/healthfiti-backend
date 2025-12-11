@@ -4,7 +4,7 @@ use crate::{
     db::main::{
         self,
         entities::sea_orm_active_enums::{
-            BillingItemType, PaymentMethod, PaymentStatus, SubscriptionStatus,
+            BillingCycle, BillingItemType, PaymentMethod, PaymentStatus, SubscriptionStatus,
         },
         migrations::sea_orm::{
             ActiveModelTrait, ColumnTrait, EntityTrait, PaginatorTrait,
@@ -12,7 +12,6 @@ use crate::{
         },
     }, emails::invoice::send_invoice_email, handlers::{
         admin::payments::{PaymentSubscriptionResultData, PaymentTransactionsResultData},
-        tenant::subscriptions::compute_period_end,
     }, utils::{
         self,
         api_response::ApiResponse,
@@ -26,7 +25,7 @@ use crate::{
 };
 use actix_web::{HttpRequest, web};
 use async_trait::async_trait;
-use chrono::{NaiveDateTime, Utc, Datelike};
+use chrono::{Datelike, Duration, NaiveDateTime, Utc};
 use redis::AsyncCommands;
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
@@ -711,6 +710,30 @@ pub fn get_payment_processor(method: &PaymentMethod) -> Box<dyn PaymentProcessor
         PaymentMethod::Paypal => Box::new(PayPalProcessor),
         PaymentMethod::Card => Box::new(CardProcessor),
         PaymentMethod::Cash => Box::new(CashProcessor),
+    }
+}
+
+pub fn compute_period_end(
+    start: NaiveDateTime,
+    cycle: &BillingCycle,
+    custom_days: Option<i32>,
+) -> NaiveDateTime {
+    match cycle {
+        BillingCycle::Weekly => start + Duration::weeks(1),
+        BillingCycle::Monthly => start + Duration::days(30),
+        BillingCycle::Quarterly => start + Duration::days(90),
+        BillingCycle::Yearly => start + Duration::days(365),
+        BillingCycle::Custom => start + Duration::days(custom_days.unwrap_or(0) as i64),
+    }
+}
+
+pub fn compute_period_duration(cycle: &BillingCycle, custom_days: Option<i32>) -> Duration {
+    match cycle {
+        BillingCycle::Weekly => Duration::days(7),
+        BillingCycle::Monthly => Duration::days(30),
+        BillingCycle::Quarterly => Duration::days(90),
+        BillingCycle::Yearly => Duration::days(365),
+        BillingCycle::Custom => Duration::days(custom_days.unwrap_or(0) as i64),
     }
 }
 
