@@ -218,7 +218,6 @@ pub async fn show(
 
 pub async fn show_by_tenant(
     app_state: web::Data<AppState>,
-    req: HttpRequest,
     path: web::Path<Uuid>,
 ) -> Result<ApiResponse, ApiResponse> {
     let pid = path.into_inner();
@@ -319,6 +318,10 @@ pub async fn set_active_status(
     data: web::Json<PaymentTransactionStatusRequest>,
     path: web::Path<Uuid>,
 ) -> Result<ApiResponse, ApiResponse> {
+    if let Err(err) = data.validate() {
+        return Err(ApiResponse::new(400, json!(err)));
+    }
+    
     let pid = path.into_inner();
 
     let payment = main::entities::payment_transactions::Entity::find_by_pid(pid)

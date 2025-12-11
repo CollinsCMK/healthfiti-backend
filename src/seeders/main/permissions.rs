@@ -109,6 +109,57 @@ pub async fn seed_permissions() -> Result<ApiResponse, ApiResponse> {
             "Allows the user to restore a soft-deleted subscription plan",
             "Subscription Plans",
         ),
+        // Payment Transactions
+        (
+            "view_all_payment_transactions",
+            "Allows the user to view all payment transactions in the system",
+            "Payment Transactions",
+        ),
+        (
+            "view_tenant_payment_transaction",
+            "Allows the user to view a payment transaction for a specific tenant",
+            "Payment Transactions",
+        ),
+        (
+            "view_payment_transaction",
+            "Allows the user to view a specific payment transaction",
+            "Payment Transactions",
+        ),
+        (
+            "create_payment_transaction",
+            "Allows the user to create a new payment transaction",
+            "Payment Transactions",
+        ),
+        (
+            "retry_payment_transaction",
+            "Allows the user to retry a failed payment transaction",
+            "Payment Transactions",
+        ),
+        (
+            "activate_or_deactivate_payment_transaction",
+            "Allows the user to activate or deactivate a payment transaction",
+            "Payment Transactions",
+        ),
+        (
+            "delete_payment_transaction",
+            "Permanently deletes a payment transaction",
+            "Payment Transactions",
+        ),
+        (
+            "view_archived_payment_transactions",
+            "Allows the user to view archived/soft-deleted payment transactions",
+            "Payment Transactions",
+        ),
+        (
+            "soft_delete_payment_transaction",
+            "Allows the user to soft-delete a payment transaction",
+            "Payment Transactions",
+        ),
+        (
+            "restore_payment_transaction",
+            "Allows the user to restore a soft-deleted payment transaction",
+            "Payment Transactions",
+        ),
     ];
 
     // Convert default_permissions to Vec of objects expected by /create API

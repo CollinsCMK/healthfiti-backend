@@ -27,6 +27,7 @@ use crate::{
 use actix_web::{HttpRequest, web};
 use async_trait::async_trait;
 use chrono::{NaiveDateTime, Utc, Datelike};
+use redis::AsyncCommands;
 use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -89,6 +90,11 @@ pub async fn index(
         200,
         json!({
             "payment_transactions": results,
+            "page": page,
+            "total_pages": total_pages,
+            "total_items": total_items,
+            "has_prev": has_prev,
+            "has_next": has_next,
             "message": "Payment transactions fetched successfully"
         }),
     ))
@@ -169,6 +175,16 @@ pub async fn show(
         }),
     ))
 }
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct IdempotentResponse {
+    pub status_code: u16,
+    pub body: serde_json::Value,
+    pub created_at: i64,
+}
+
+const IDEMPOTENCY_KEY_PREFIX: &str = "idempotency:payment:";
+const IDEMPOTENCY_TTL_SECONDS: u64 = 86400;
 
 // ============================================================================
 // REQUEST/RESPONSE STRUCTURES
@@ -286,6 +302,125 @@ impl PaymentTransactionCreateRequest {
             _ => PaymentMethod::Mpesa,
         }
     }
+}
+
+fn get_idempotency_redis_key(tenant_id: i32, idempotency_key: &str) -> String {
+    format!("{}{}:{}", IDEMPOTENCY_KEY_PREFIX, tenant_id, idempotency_key)
+}
+
+async fn check_idempotency(
+    app_state: &web::Data<AppState>,
+    tenant_id: i32,
+    idempotency_key: &str,
+) -> Result<Option<IdempotentResponse>, ApiResponse> {
+    let redis_key = get_idempotency_redis_key(tenant_id, idempotency_key);
+    
+    let mut conn = app_state
+        .redis
+        .get_multiplexed_async_connection()
+        .await
+        .map_err(|err| {
+            log::error!("Failed to get Redis connection: {}", err);
+            ApiResponse::new(500, json!({ "message": "Redis connection failed" }))
+        })?;
+
+    let cached: Option<String> = conn.get(&redis_key).await.map_err(|err| {
+        log::error!("Failed to get idempotency key from Redis: {}", err);
+        ApiResponse::new(500, json!({ "message": "Failed to check idempotency" }))
+    })?;
+
+    if let Some(data) = cached {
+        let response: IdempotentResponse = serde_json::from_str(&data).map_err(|err| {
+            log::error!("Failed to deserialize cached response: {}", err);
+            ApiResponse::new(500, json!({ "message": "Failed to parse cached response" }))
+        })?;
+
+        log::info!(
+            "Idempotent request detected for key: {} (tenant: {})",
+            idempotency_key,
+            tenant_id
+        );
+
+        return Ok(Some(response));
+    }
+
+    Ok(None)
+}
+
+async fn store_idempotency_response(
+    app_state: &web::Data<AppState>,
+    tenant_id: i32,
+    idempotency_key: &str,
+    status_code: u16,
+    body: serde_json::Value,
+) -> Result<(), ApiResponse> {
+    let redis_key = get_idempotency_redis_key(tenant_id, idempotency_key);
+    
+    let response = IdempotentResponse {
+        status_code,
+        body,
+        created_at: Utc::now().timestamp(),
+    };
+
+    let serialized = serde_json::to_string(&response).map_err(|err| {
+        log::error!("Failed to serialize response: {}", err);
+        ApiResponse::new(500, json!({ "message": "Failed to cache response" }))
+    })?;
+
+    let mut conn = app_state
+        .redis
+        .get_multiplexed_async_connection()
+        .await
+        .map_err(|err| {
+            log::error!("Failed to get Redis connection: {}", err);
+            ApiResponse::new(500, json!({ "message": "Redis connection failed" }))
+        })?;
+
+    let _: () = conn.set_ex(&redis_key, serialized, IDEMPOTENCY_TTL_SECONDS)
+        .await
+        .map_err(|err| {
+            log::error!("Failed to store idempotency response: {}", err);
+            ApiResponse::new(500, json!({ "message": "Failed to cache response" }))
+        })?;
+
+    log::info!(
+        "Stored idempotency response for key: {} (tenant: {}), TTL: {}s",
+        idempotency_key,
+        tenant_id,
+        IDEMPOTENCY_TTL_SECONDS
+    );
+
+    Ok(())
+}
+
+async fn delete_idempotency_key(
+    app_state: &web::Data<AppState>,
+    tenant_id: i32,
+    idempotency_key: &str,
+) -> Result<(), ApiResponse> {
+    let redis_key = get_idempotency_redis_key(tenant_id, idempotency_key);
+    
+    let mut conn = app_state
+        .redis
+        .get_multiplexed_async_connection()
+        .await
+        .map_err(|err| {
+            log::error!("Failed to get Redis connection: {}", err);
+            ApiResponse::new(500, json!({ "message": "Redis connection failed" }))
+        })?;
+
+    let _: () = conn.del(&redis_key).await.map_err(|err| {
+        log::error!("Failed to delete idempotency key from Redis: {}", err);
+        ApiResponse::new(500, json!({ "message": "Failed to delete idempotency key" }))
+    })?;
+
+    log::info!(
+        "Deleted idempotency key: {} (tenant: {})",
+        idempotency_key,
+        tenant_id
+    );
+
+    Ok(())
 }
 
 #[derive(Debug)]
@@ -669,6 +804,19 @@ pub async fn create(
         return Err(ApiResponse::new(400, json!(err)));
     }
 
+    let new_idempotency_key = Uuid::new_v4().to_string();
+
+    if let Some(cached_response) = check_idempotency(&app_state, tenant_id, &new_idempotency_key).await? {
+        log::info!(
+            "Returning cached response for idempotency key: {}",
+            new_idempotency_key
+        );
+        return Ok(ApiResponse::new(
+            cached_response.status_code,
+            cached_response.body,
+        ));
+    }
+
     let payment_method = data.get_payment_method();
     let processor = get_payment_processor(&payment_method);
 
@@ -678,13 +826,26 @@ pub async fn create(
     })?;
 
     if !result.is_success() {
-        return Err(ApiResponse::new(
+        let error_response = json!({
+            "message": format!("{:?} payment failed", payment_method),
+            "details": result.response_json,
+        });
+        
+        let _ = store_idempotency_response(
+            &app_state,
+            tenant_id,
+            &new_idempotency_key,
             500,
-            json!({
-                "message": format!("{:?} payment failed", payment_method),
-                "details": result.response_json,
-            }),
-        ));
+            error_response.clone(),
+        )
+        .await;
+
+        if should_allow_retry(&result.failure_reason) {
+            log::info!("Deleting idempotency key to allow retry");
+            let _ = delete_idempotency_key(&app_state, tenant_id, &new_idempotency_key).await;
+        }
+
+        return Err(ApiResponse::new(500, error_response));
     }
 
     let (start, end) = create_subscription(&app_state, data.subscription_id, tenant_id).await?;
@@ -762,7 +923,12 @@ pub async fn create(
         payment_method: Set(payment_method.clone()),
         invoice_url: Set(Some(invoice_url)),
         description: Set(data.description.clone()),
-        metadata: Set(Some(result.response_json.clone())),
+        failure_reason: Set(result.failure_reason.clone()),
+        metadata: Set(Some(json!({
+            "idempotency_key": new_idempotency_key,
+            "payment_result": result.response_json,
+            "provider_reference": result.provider_reference,
+        }))),
         ..Default::default()
     }
         .insert(&app_state.main_db)
@@ -772,14 +938,102 @@ pub async fn create(
             ApiResponse::new(500, json!({ "message": err.to_string() }))
         })?;
 
+    let success_response = json!({
+        "message": "Payment initiated successfully",
+        "status": "pending",
+        "transaction_id": transaction.id,
+        "provider_reference": result.provider_reference,
+        "details": result.response_json,
+        "idempotency_key": new_idempotency_key,
+    });
+
+    store_idempotency_response(
+        &app_state,
+        tenant_id,
+        &new_idempotency_key,
+        200,
+        success_response.clone(),
+    )
+    .await?;
+
+    Ok(ApiResponse::new(200, success_response))
+}
+
+fn should_allow_retry(failure_reason: &Option<String>) -> bool {
+    if let Some(reason) = failure_reason {
+        let reason_lower = reason.to_lowercase();
+        reason_lower.contains("timeout") ||
+        reason_lower.contains("network") ||
+        reason_lower.contains("unavailable") ||
+        reason_lower.contains("503")
+    } else {
+        false
+    }
+}
+
+pub async fn retry_payment(
+    app_state: web::Data<AppState>,
+    path: web::Path<Uuid>,
+    req: HttpRequest,
+) -> Result<ApiResponse, ApiResponse> {
+    let pid = path.into_inner();
+    let (tenant_id, _, _) = get_tenant_id(&req, &app_state).await?;
+
+    // Find the failed transaction
+    let transaction = main::entities::payment_transactions::Entity::find_by_pid(pid)
+        .filter(main::entities::payment_transactions::Column::TenantId.eq(tenant_id))
+        .filter(main::entities::payment_transactions::Column::Status.eq(PaymentStatus::Failed))
+        .one(&app_state.main_db)
+        .await
+        .map_err(|err| {
+            log::error!("Failed to find transaction: {}", err);
+            ApiResponse::new(500, json!({ "message": err.to_string() }))
+        })?
+        .ok_or_else(|| {
+            ApiResponse::new(404, json!({ "message": "Failed transaction not found" }))
+        })?;
+
+    // Extract idempotency key from metadata
+    let idempotency_key = transaction
+        .metadata
+        .as_ref()
+        .and_then(|m| m["idempotency_key"].as_str())
+        .ok_or_else(|| {
+            ApiResponse::new(400, json!({ "message": "Idempotency key not found in metadata" }))
+        })?;
+
+    delete_idempotency_key(&app_state, tenant_id, idempotency_key).await?;
+
+    let new_idempotency_key = uuid::Uuid::new_v4().to_string();
+
+    let mut metadata = transaction.metadata.clone().unwrap_or_default();
+    metadata["idempotency_key"] = serde_json::Value::String(new_idempotency_key.clone());
+
+    let mut active_model: main::entities::payment_transactions::ActiveModel = transaction.to_owned().into();
+    active_model.metadata = Set(Some(metadata));
+    active_model.updated_at = Set(Utc::now().naive_utc());
+    active_model
+        .update(&app_state.main_db)
+        .await
+        .map_err(|err| {
+            log::error!("Failed to update transaction metadata: {}", err);
+            ApiResponse::new(500, json!({ "message": err.to_string() }))
+        })?;
+
+    store_idempotency_response(
+        &app_state,
+        tenant_id,
+        &new_idempotency_key,
+        200,
+        json!({ "message": "Retry initiated" }),
+    )
+    .await?;
+
     Ok(ApiResponse::new(
         200,
         json!({
-            "message": "Payment initiated successfully",
-            "status": "pending",
-            "transaction_id": transaction.id,
-            "provider_reference": result.provider_reference,
-            "details": result.response_json
+            "message": "Payment retry enabled. Use the new idempotency key for the next attempt.",
+            "idempotency_key": new_idempotency_key,
         }),
     ))
 }
@@ -881,6 +1135,16 @@ pub async fn mpesa_callback(
 
     if new_status == PaymentStatus::Succeeded {
         activate_subscription(&app_state, updated.subscription_id, updated.tenant_id).await?;
+
+        let idempotency_key = transaction
+            .metadata
+            .as_ref()
+            .and_then(|m| m["idempotency_key"].as_str())
+            .ok_or_else(|| {
+                ApiResponse::new(400, json!({ "message": "Idempotency key not found in metadata" }))
+            })?;
+
+        delete_idempotency_key(&app_state, transaction.tenant_id, idempotency_key).await?;
     }
 
     Ok(ApiResponse::new(
