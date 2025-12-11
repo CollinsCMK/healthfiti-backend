@@ -124,6 +124,8 @@ pub enum SubscriptionStatus {
     Trial,
     #[sea_orm(string_value = "active")]
     Active,
+    #[sea_orm(string_value = "pending_payment")]
+    PendingPayment,
     #[sea_orm(string_value = "past_due")]
     PastDue,
     #[sea_orm(string_value = "cancelled")]

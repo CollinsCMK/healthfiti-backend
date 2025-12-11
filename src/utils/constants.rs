@@ -32,6 +32,15 @@ lazy_static! {
     pub static ref MPESA_CONSUMER_KEY: String = mpesa_consumer_key();
     pub static ref MPESA_CONSUMER_SECRET: String = mpesa_consumer_secret();
     pub static ref MPESA_SHORTCODE: String = mpesa_shortcode();
+    pub static ref MPESA_CALLBACK_URL: String = mpesa_callback_url();
+    pub static ref MPESA_TRANSACTION_TYPE: String = mpesa_transaction_type();
+    pub static ref MPESA_PASSKEY: String = mpesa_passkey();
+    pub static ref APP_LOGO_URL: String = app_logo_url();
+    pub static ref APP_PRIVACY_URL: String = app_privacy_url();
+    pub static ref APP_PRIMARY_COLOR: String = app_primary_color();
+    pub static ref APP_ACCENT_COLOR: String = app_accent_color();
+    pub static ref APP_TEXT_COLOR: String = app_text_color();
+    pub static ref APP_FOOTER_TEXT_COLOR: String = app_footer_text_color();
 }
 
 fn set_app_name() -> String {
@@ -185,20 +194,73 @@ fn sso_client_secret() -> String {
 
 fn mpesa_base_url() -> String {
     dotenv::dotenv().ok();
-    env::var("MPESA_BASE_URL").expect("Environment variable 'MPESA_BASE_URL' is required but not set.")
+    env::var("MPESA_BASE_URL")
+        .expect("Environment variable 'MPESA_BASE_URL' is required but not set.")
 }
 
 fn mpesa_consumer_key() -> String {
     dotenv::dotenv().ok();
-    env::var("MPESA_CONSUMER_KEY").expect("Environment variable 'MPESA_CONSUMER_KEY' is required but not set.")
+    env::var("MPESA_CONSUMER_KEY")
+        .expect("Environment variable 'MPESA_CONSUMER_KEY' is required but not set.")
 }
 
 fn mpesa_consumer_secret() -> String {
     dotenv::dotenv().ok();
-    env::var("MPESA_CONSUMER_SECRET").expect("Environment variable 'MPESA_CONSUMER_SECRET' is required but not set.")
+    env::var("MPESA_CONSUMER_SECRET")
+        .expect("Environment variable 'MPESA_CONSUMER_SECRET' is required but not set.")
 }
 
 fn mpesa_shortcode() -> String {
     dotenv::dotenv().ok();
-    env::var("MPESA_SHORTCODE").expect("Environment variable 'MPESA_SHORTCODE' is required but not set.")
+    env::var("MPESA_SHORTCODE")
+        .expect("Environment variable 'MPESA_SHORTCODE' is required but not set.")
+}
+
+fn mpesa_callback_url() -> String {
+    dotenv::dotenv().ok();
+    env::var("MPESA_CALLBACK_URL")
+        .expect("Environment variable 'MPESA_CALLBACK_URL' is required but not set.")
+}
+
+fn mpesa_transaction_type() -> String {
+    dotenv::dotenv().ok();
+    env::var("MPESA_TRANSACTION_TYPE")
+        .expect("Environment variable 'MPESA_TRANSACTION_TYPE' is required but not set.")
+}
+
+fn mpesa_passkey() -> String {
+    dotenv::dotenv().ok();
+    env::var("MPESA_PASSKEY")
+        .expect("Environment variable 'MPESA_PASSKEY' is required but not set.")
+}
+
+fn app_logo_url() -> String {
+    dotenv::dotenv().ok();
+    env::var("APP_LOGO_URL")
+        .unwrap_or_else(|_| "https://healthfiti.com/assets/healthfiti.png".to_string())
+}
+
+fn app_privacy_url() -> String {
+    dotenv::dotenv().ok();
+    env::var("APP_PRIVACY_URL").unwrap_or_else(|_| "https://healthfiti.com/privacy".to_string())
+}
+
+fn app_primary_color() -> String {
+    dotenv::dotenv().ok();
+    env::var("APP_PRIMARY_COLOR").unwrap_or_else(|_| "#0C355A".to_string())
+}
+
+fn app_accent_color() -> String {
+    dotenv::dotenv().ok();
+    env::var("APP_ACCENT_COLOR").unwrap_or_else(|_| "#F37021".to_string())
+}
+
+fn app_text_color() -> String {
+    dotenv::dotenv().ok();
+    env::var("APP_TEXT_COLOR").unwrap_or_else(|_| "#444444".to_string())
+}
+
+fn app_footer_text_color() -> String {
+    dotenv::dotenv().ok();
+    env::var("APP_FOOTER_TEXT_COLOR").unwrap_or_else(|_| "#666666".to_string())
 }

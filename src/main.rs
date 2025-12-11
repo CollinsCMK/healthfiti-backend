@@ -11,9 +11,12 @@ use aws_credential_types::Credentials;
 use aws_sdk_s3::{Client, Config};
 
 use crate::{
-    cron_jobs::all::init_cron_jobs, db::main, utils::{app_state::AppState, message_queue::init_message_queue, migrate::migrate_tenants}
+    cron_jobs::all::init_cron_jobs,
+    db::main,
+    utils::{app_state::AppState, message_queue::init_message_queue, migrate::migrate_tenants},
 };
 
+mod cron_jobs;
 mod db;
 mod emails;
 mod handlers;
@@ -21,7 +24,6 @@ mod middlewares;
 mod routes;
 mod seeders;
 mod utils;
-mod cron_jobs;
 
 #[derive(Debug)]
 struct MainError {

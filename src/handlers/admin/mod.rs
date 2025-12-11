@@ -1,4 +1,5 @@
 pub mod patients;
+pub mod payments;
 pub mod subscription_plans;
 pub mod subscriptions;
 pub mod tenant_applications;

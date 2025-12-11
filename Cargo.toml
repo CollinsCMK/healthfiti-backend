@@ -40,3 +40,5 @@ rust_decimal = { version = "1.39.0", features = ["macros"] }
 chrono-tz = "0.10.4"
 url = "2.5.7"
 tokio-cron-scheduler = "0.15.1"
+base64 = "0.22.1"
+async-trait = "0.1.89"

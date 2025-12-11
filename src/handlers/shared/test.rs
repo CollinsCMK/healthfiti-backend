@@ -1,5 +1,6 @@
 use actix_web::{HttpRequest, post, web};
 use chrono::{Datelike, Utc};
+use serde::Deserialize;
 use serde_json::json;
 
 use crate::{
@@ -8,10 +9,16 @@ use crate::{
     utils::{api_response::ApiResponse, app_state::AppState, message_queue::MessageType},
 };
 
+#[derive(Deserialize)]
+struct SendTestRequest {
+    domain: Option<String>,
+}
+
 #[post("")]
 async fn send(
     app_state: web::Data<AppState>,
     req: HttpRequest,
+    data: web::Json<SendTestRequest>,
 ) -> Result<ApiResponse, ApiResponse> {
     let profile = get_profile_data(&req).await.map_err(|err| {
         ApiResponse::new(
@@ -38,7 +45,10 @@ async fn send(
             user.email.to_string(),
             &user.username,
             Utc::now().year(),
-            app_state.clone(),
+            &app_state.clone(),
+            data.domain.clone(),
+            None,
+            None,
         )
         .await
         .map_err(|err| ApiResponse::new(500, json!({ "message": err.to_string() })))?;

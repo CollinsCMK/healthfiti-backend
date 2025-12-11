@@ -13,14 +13,22 @@ struct AccessTokenResponse {
     expires_in: String,
 }
 
-#[derive(Deserialize)]
-struct StkPushResponse {
-    ResponseCode: String,
-    ResponseDescription: String,
-    MerchantRequestID: String,
-    CheckoutRequestID: String,
-    ResultCode: String,
-    ResultDesc: String,
+#[derive(Deserialize, Debug)]
+#[serde(untagged)]
+pub enum StkPushResponse {
+    Success {
+        ResponseCode: String,
+        ResponseDescription: String,
+        MerchantRequestID: String,
+        CheckoutRequestID: String,
+        ResultCode: String,
+        ResultDesc: String,
+    },
+    Error {
+        requestId: String,
+        errorCode: String,
+        errorMessage: String,
+    },
 }
 
 pub struct MpesaClient {
@@ -28,6 +36,8 @@ pub struct MpesaClient {
     pub base_url: String,
     pub consumer_key: String,
     pub consumer_secret: String,
+    pub business_shortcode: String,
+    pub passkey: String,
 }
 
 impl MpesaClient {
@@ -35,17 +45,36 @@ impl MpesaClient {
         let base_url = (utils::constants::MPESA_BASE_URL).clone();
         let consumer_key = (utils::constants::MPESA_CONSUMER_KEY).clone();
         let consumer_secret = (utils::constants::MPESA_CONSUMER_SECRET).clone();
-        
+        let business_shortcode = (utils::constants::MPESA_SHORTCODE).clone();
+        let passkey = (utils::constants::MPESA_PASSKEY).clone();
+
         Self {
             client: Client::new(),
             base_url,
             consumer_key,
             consumer_secret,
+            business_shortcode,
+            passkey,
         }
     }
 
+    pub fn get_timestamp(&self) -> String {
+        use chrono::prelude::*;
+
+        let now = Local::now();
+        now.format("%Y%m%d%H%M%S").to_string()
+    }
+
+    pub fn generate_password(&self, timestamp: &str) -> String {
+        let raw = format!("{}{}{}", self.business_shortcode, self.passkey, timestamp);
+        base64::encode(raw)
+    }
+
     pub async fn get_access_token(&self) -> Result<String, reqwest::Error> {
-        let url = format!("{}/oauth/v1/generate?grant_type=client_credentials", self.base_url);
+        let url = format!(
+            "{}/oauth/v1/generate?grant_type=client_credentials",
+            self.base_url
+        );
 
         let resp = self
             .client
@@ -97,7 +126,9 @@ const WHITELISTED_IPS: &[&str] = &[
 ];
 
 fn is_ip_whitelisted(ip: &IpAddr) -> bool {
-    WHITELISTED_IPS.iter().any(|&whitelisted| ip.to_string() == whitelisted)
+    WHITELISTED_IPS
+        .iter()
+        .any(|&whitelisted| ip.to_string() == whitelisted)
 }
 
 pub async fn mpesa_callback(
@@ -114,18 +145,21 @@ pub async fn mpesa_callback(
     if let Some(ip) = peer_ip {
         if !is_ip_whitelisted(&ip) {
             println!("Blocked IP: {}", ip);
-            return Err(ApiResponse::new(200, json!({"message": "IP not allowed"})))
+            return Err(ApiResponse::new(200, json!({"message": "IP not allowed"})));
         }
     } else {
         println!("Could not determine client IP");
-        return Err(ApiResponse::new(200, json!({"message": "IP not allowed"})))
+        return Err(ApiResponse::new(200, json!({"message": "IP not allowed"})));
     }
 
     let payload = std::str::from_utf8(&body).unwrap_or_default();
     println!("Received Mpesa callback: {}", payload);
 
-    Ok(ApiResponse::new(200, json!({
-        "ResultCode": 0,
-        "ResultDesc": "Accepted"
-    })))
+    Ok(ApiResponse::new(
+        200,
+        json!({
+            "ResultCode": 0,
+            "ResultDesc": "Accepted"
+        }),
+    ))
 }

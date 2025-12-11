@@ -178,7 +178,7 @@ impl CreateSubscriptionDTO {
     }
 }
 
-fn compute_period_end(
+pub fn compute_period_end(
     start: NaiveDateTime,
     cycle: &BillingCycle,
     custom_days: Option<i32>,
@@ -200,7 +200,7 @@ pub async fn trial(
     let (tenant_id, _, _) = get_tenant_id(&req, &app_state).await?;
 
     let start = Utc::now().naive_utc();
-    
+
     let end = start + Duration::weeks(1);
 
     main::entities::subscriptions::ActiveModel {
@@ -250,12 +250,8 @@ pub async fn create(
         ))?;
 
     let start = Utc::now().naive_utc();
-    
-    let end = compute_period_end(
-        start,
-        &plan.billing_cycle,
-        None,
-    );
+
+    let end = compute_period_end(start, &plan.billing_cycle, None);
 
     let existing_sub = main::entities::subscriptions::Entity::find()
         .filter(main::entities::subscriptions::Column::TenantId.eq(tenant_id))
@@ -267,7 +263,9 @@ pub async fn create(
         })?;
 
     if let Some(existing) = existing_sub.clone() {
-        if existing.status == SubscriptionStatus::Active || existing.status == SubscriptionStatus::Trial {
+        if existing.status == SubscriptionStatus::Active
+            || existing.status == SubscriptionStatus::Trial
+        {
             return Err(ApiResponse::new(
                 409,
                 json!({ "message": "Tenant already has a subscription" }),
@@ -306,10 +304,7 @@ pub async fn create(
     ))
 }
 
-pub fn compute_period_duration(
-    cycle: &BillingCycle,
-    custom_days: Option<i32>,
-) -> Duration {
+pub fn compute_period_duration(cycle: &BillingCycle, custom_days: Option<i32>) -> Duration {
     match cycle {
         BillingCycle::Weekly => Duration::days(7),
         BillingCycle::Monthly => Duration::days(30),
@@ -337,8 +332,11 @@ pub async fn update(
             log::error!("Failed to fetch subscription: {}", err);
             ApiResponse::new(500, json!({ "message": "Failed to fetch subscription" }))
         })?
-        .ok_or(ApiResponse::new(404, json!({ "message": "Subscription not found" })))?;
-    
+        .ok_or(ApiResponse::new(
+            404,
+            json!({ "message": "Subscription not found" }),
+        ))?;
+
     let plan = main::entities::subscription_plans::Entity::find_by_id(data.plan_id)
         .filter(main::entities::subscription_plans::Column::DeletedAt.is_null())
         .one(&app_state.main_db)
@@ -356,7 +354,7 @@ pub async fn update(
         ))?;
 
     let start = Utc::now().naive_utc();
-    
+
     let current_end = subscription.current_period_end.unwrap_or(start);
     let new_end = if current_end > start {
         current_end + compute_period_duration(&plan.billing_cycle, None)
@@ -364,7 +362,8 @@ pub async fn update(
         start + compute_period_duration(&plan.billing_cycle, None)
     };
 
-    let mut update_model: main::entities::subscriptions::ActiveModel = subscription.to_owned().into();
+    let mut update_model: main::entities::subscriptions::ActiveModel =
+        subscription.to_owned().into();
     update_model.plan_id = Set(plan.id);
     update_model.status = Set(SubscriptionStatus::Active);
     update_model.current_period_start = Set(Some(start));
@@ -375,12 +374,13 @@ pub async fn update(
     update_model.storage_gb = Set(plan.storage_gb);
     update_model.api_rate_limit_per_hour = Set(plan.api_rate_limit_per_hour);
 
-    update_model.update(&app_state.main_db).await.map_err(|err| {
-        log::error!("Failed to update subscription: {}", err);
-        ApiResponse::new(500, json!({ "message": "Failed to update subscription" }))
-    })?;
-
-    
+    update_model
+        .update(&app_state.main_db)
+        .await
+        .map_err(|err| {
+            log::error!("Failed to update subscription: {}", err);
+            ApiResponse::new(500, json!({ "message": "Failed to update subscription" }))
+        })?;
 
     Ok(ApiResponse::new(
         200,

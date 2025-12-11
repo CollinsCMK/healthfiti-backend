@@ -14,6 +14,7 @@ impl MigrationTrait for Migration {
                     .values([
                         Alias::new("trial"),
                         Alias::new("active"),
+                        Alias::new("pending_payment"),
                         Alias::new("past_due"),
                         Alias::new("cancelled"),
                         Alias::new("expired"),
@@ -55,6 +56,7 @@ impl MigrationTrait for Migration {
                             vec![
                                 Alias::new("trial"),
                                 Alias::new("active"),
+                                Alias::new("pending_payment"),
                                 Alias::new("past_due"),
                                 Alias::new("cancelled"),
                                 Alias::new("expired"),
