@@ -1,6 +1,10 @@
 use actix_web::web::{self};
 
-use crate::{handlers::tenant::payments, middlewares::{jwt_auth::JwtAuth, permissions::Permission}, utils};
+use crate::{
+    handlers::tenant::payments,
+    middlewares::{jwt_auth::JwtAuth, permissions::Permission},
+    utils,
+};
 
 pub fn config(config: &mut web::ServiceConfig) {
     let secret = (utils::constants::SECRET).clone();

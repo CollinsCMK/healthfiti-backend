@@ -321,7 +321,7 @@ pub async fn set_active_status(
     if let Err(err) = data.validate() {
         return Err(ApiResponse::new(400, json!(err)));
     }
-    
+
     let pid = path.into_inner();
 
     let payment = main::entities::payment_transactions::Entity::find_by_pid(pid)

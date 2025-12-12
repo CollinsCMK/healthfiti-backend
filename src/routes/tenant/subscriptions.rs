@@ -24,6 +24,6 @@ pub fn config(config: &mut web::ServiceConfig) {
                 web::resource("/cancel/{pid}")
                     .wrap(Permission::new("cancel_subscription".to_string()))
                     .route(web::post().to(subscriptions::cancel)),
-            )
+            ),
     );
 }

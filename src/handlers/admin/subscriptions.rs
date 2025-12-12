@@ -12,8 +12,8 @@ use crate::{
         self,
         entities::sea_orm_active_enums::SubscriptionStatus,
         migrations::sea_orm::{
-            ActiveModelTrait, ColumnTrait, Condition, EntityTrait, FromQueryResult, PaginatorTrait,
-            QueryFilter, QueryOrder, QuerySelect, Set,
+            ActiveModelTrait, ColumnTrait, Condition, EntityTrait, FromQueryResult, JoinType,
+            PaginatorTrait, QueryFilter, QueryOrder, QuerySelect, RelationTrait, Set,
         },
     },
     utils::{
@@ -43,16 +43,12 @@ pub struct SubscriptionDTO {
     pub created_at: Option<NaiveDateTime>,
     pub updated_at: Option<NaiveDateTime>,
     pub deleted_at: Option<NaiveDateTime>,
+    pub plan_name: String,
 }
 
 #[derive(FromQueryResult, Debug, Clone)]
 pub struct TenantDTO {
     pub tenant_name: String,
-}
-
-#[derive(FromQueryResult, Debug, Clone)]
-pub struct PlanDTO {
-    pub plan_name: String,
 }
 
 pub async fn index(
@@ -63,7 +59,10 @@ pub async fn index(
     let fetch_all = query.all.unwrap_or(false);
 
     let mut stmt = main::entities::subscriptions::Entity::find()
-        .find_also_related(main::entities::subscription_plans::Entity)
+        .join(
+            JoinType::InnerJoin,
+            main::entities::subscriptions::Relation::SubscriptionPlans1.def(),
+        )
         .find_also_related(main::entities::tenants::Entity);
 
     if !has_permission("view_archived_subscriptions", &req).await? {
@@ -105,7 +104,7 @@ pub async fn index(
                 "plan_name",
             )
             .column(main::entities::subscriptions::Column::Status)
-            .into_model::<SubscriptionDTO, PlanDTO, TenantDTO>()
+            .into_model::<SubscriptionDTO, TenantDTO>()
             .all(&app_state.main_db)
             .await
             .map_err(|err| {
@@ -113,13 +112,13 @@ pub async fn index(
                 ApiResponse::new(500, json!({ "message": "Failed to fetch subscriptions" }))
             })?
             .iter()
-            .map(|(sub, plan, tenant)| {
+            .map(|(sub, tenant)| {
                 json!({
                     "pid": sub.pid,
                     "tenant_id": sub.tenant_id,
                     "tenant_name": tenant.as_ref().map(|t| t.tenant_name.clone()),
                     "plan_id": sub.plan_id,
-                    "plan_name": plan.as_ref().map(|p| p.plan_name.clone()),
+                    "plan_name": sub.plan_name,
                     "status": sub.status,
                 })
             })
@@ -150,7 +149,7 @@ pub async fn index(
         .column(main::entities::subscriptions::Column::CreatedAt)
         .column(main::entities::subscriptions::Column::UpdatedAt)
         .column(main::entities::subscriptions::Column::DeletedAt)
-        .into_model::<SubscriptionDTO, PlanDTO, TenantDTO>()
+        .into_model::<SubscriptionDTO, TenantDTO>()
         .paginate(&app_state.main_db, limit);
 
     let total_items = paginator
@@ -170,13 +169,13 @@ pub async fn index(
             ApiResponse::new(500, json!({ "message": "Failed to fetch subscriptions" }))
         })?
         .into_iter()
-        .map(|(sub, plan, tenant)| {
+        .map(|(sub, tenant)| {
             json!({
                 "pid": sub.pid,
                 "tenant_id": sub.tenant_id,
                 "tenant_name": tenant.as_ref().map(|t| t.tenant_name.clone()),
                 "plan_id": sub.plan_id,
-                "plan_name": plan.as_ref().map(|p| p.plan_name.clone()),
+                "plan_name": sub.plan_name,
                 "status": sub.status,
                 "created_at": sub.created_at,
                 "updated_at": sub.updated_at,
@@ -213,7 +212,10 @@ pub async fn show(
     }
 
     let subscription = stmt
-        .find_also_related(main::entities::subscription_plans::Entity)
+        .join(
+            JoinType::InnerJoin,
+            main::entities::subscriptions::Relation::SubscriptionPlans1.def(),
+        )
         .find_also_related(main::entities::tenants::Entity)
         .select_only()
         .column(main::entities::subscriptions::Column::Pid)
@@ -237,7 +239,7 @@ pub async fn show(
         .column(main::entities::subscriptions::Column::CreatedAt)
         .column(main::entities::subscriptions::Column::UpdatedAt)
         .column(main::entities::subscriptions::Column::DeletedAt)
-        .into_model::<SubscriptionDTO, PlanDTO, TenantDTO>()
+        .into_model::<SubscriptionDTO, TenantDTO>()
         .one(&app_state.main_db)
         .await
         .map_err(|err| {
@@ -249,7 +251,7 @@ pub async fn show(
             json!({ "message": "Subscription not found" }),
         ))?;
 
-    let (sub, plan, tenant) = subscription;
+    let (sub, tenant) = subscription;
 
     Ok(ApiResponse::new(
         200,
@@ -259,7 +261,7 @@ pub async fn show(
                 "tenant_id": sub.tenant_id,
                 "tenant_name": tenant.as_ref().map(|t| t.tenant_name.clone()),
                 "plan_id": sub.plan_id,
-                "plan_name": plan.as_ref().map(|p| p.plan_name.clone()),
+                "plan_name": sub.plan_name,
                 "status": sub.status,
                 "current_period_start": sub.current_period_start,
                 "current_period_end": sub.current_period_end,

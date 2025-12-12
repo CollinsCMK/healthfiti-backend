@@ -17,8 +17,10 @@ pub fn config(config: &mut web::ServiceConfig) {
             )
             .service(
                 web::resource("/status/{pid}")
-                    .wrap(Permission::new("activate_or_deactivate_subscription".to_string()))
+                    .wrap(Permission::new(
+                        "activate_or_deactivate_subscription".to_string(),
+                    ))
                     .route(web::post().to(subscriptions::set_active_status)),
-            )
+            ),
     );
 }

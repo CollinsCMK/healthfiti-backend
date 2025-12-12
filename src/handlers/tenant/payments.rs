@@ -7,12 +7,13 @@ use crate::{
             BillingCycle, BillingItemType, PaymentMethod, PaymentStatus, SubscriptionStatus,
         },
         migrations::sea_orm::{
-            ActiveModelTrait, ColumnTrait, EntityTrait, PaginatorTrait,
-            QueryFilter, QueryOrder, QuerySelect, Set,
+            ActiveModelTrait, ColumnTrait, EntityTrait, PaginatorTrait, QueryFilter, QueryOrder,
+            QuerySelect, Set,
         },
-    }, emails::invoice::send_invoice_email, handlers::{
-        admin::payments::{PaymentSubscriptionResultData, PaymentTransactionsResultData},
-    }, utils::{
+    },
+    emails::invoice::send_invoice_email,
+    handlers::admin::payments::{PaymentSubscriptionResultData, PaymentTransactionsResultData},
+    utils::{
         self,
         api_response::ApiResponse,
         app_state::AppState,
@@ -21,7 +22,7 @@ use crate::{
         pagination::PaginationParams,
         permission::has_permission,
         validator_error::ValidationError,
-    }
+    },
 };
 use actix_web::{HttpRequest, web};
 use async_trait::async_trait;
@@ -304,7 +305,10 @@ impl PaymentTransactionCreateRequest {
 }
 
 fn get_idempotency_redis_key(tenant_id: i32, idempotency_key: &str) -> String {
-    format!("{}{}:{}", IDEMPOTENCY_KEY_PREFIX, tenant_id, idempotency_key)
+    format!(
+        "{}{}:{}",
+        IDEMPOTENCY_KEY_PREFIX, tenant_id, idempotency_key
+    )
 }
 
 async fn check_idempotency(
@@ -313,7 +317,7 @@ async fn check_idempotency(
     idempotency_key: &str,
 ) -> Result<Option<IdempotentResponse>, ApiResponse> {
     let redis_key = get_idempotency_redis_key(tenant_id, idempotency_key);
-    
+
     let mut conn = app_state
         .redis
         .get_multiplexed_async_connection()
@@ -354,7 +358,7 @@ async fn store_idempotency_response(
     body: serde_json::Value,
 ) -> Result<(), ApiResponse> {
     let redis_key = get_idempotency_redis_key(tenant_id, idempotency_key);
-    
+
     let response = IdempotentResponse {
         status_code,
         body,
@@ -375,7 +379,8 @@ async fn store_idempotency_response(
             ApiResponse::new(500, json!({ "message": "Redis connection failed" }))
         })?;
 
-    let _: () = conn.set_ex(&redis_key, serialized, IDEMPOTENCY_TTL_SECONDS)
+    let _: () = conn
+        .set_ex(&redis_key, serialized, IDEMPOTENCY_TTL_SECONDS)
         .await
         .map_err(|err| {
             log::error!("Failed to store idempotency response: {}", err);
@@ -398,7 +403,7 @@ async fn delete_idempotency_key(
     idempotency_key: &str,
 ) -> Result<(), ApiResponse> {
     let redis_key = get_idempotency_redis_key(tenant_id, idempotency_key);
-    
+
     let mut conn = app_state
         .redis
         .get_multiplexed_async_connection()
@@ -410,7 +415,10 @@ async fn delete_idempotency_key(
 
     let _: () = conn.del(&redis_key).await.map_err(|err| {
         log::error!("Failed to delete idempotency key from Redis: {}", err);
-        ApiResponse::new(500, json!({ "message": "Failed to delete idempotency key" }))
+        ApiResponse::new(
+            500,
+            json!({ "message": "Failed to delete idempotency key" }),
+        )
     })?;
 
     log::info!(
@@ -741,7 +749,7 @@ pub fn compute_period_duration(cycle: &BillingCycle, custom_days: Option<i32>) -
 // SUBSCRIPTION HELPER
 // ============================================================================
 
-pub async fn create_subscription(
+pub async fn create_or_update_subscription(
     app_state: &web::Data<AppState>,
     plan_id: i32,
     tenant_id: i32,
@@ -763,10 +771,10 @@ pub async fn create_subscription(
         ))?;
 
     let start = Utc::now().naive_utc();
-    let end = compute_period_end(start, &plan.billing_cycle, None);
 
     let existing_sub = main::entities::subscriptions::Entity::find()
         .filter(main::entities::subscriptions::Column::TenantId.eq(tenant_id))
+        .filter(main::entities::subscriptions::Column::DeletedAt.is_null())
         .one(&app_state.main_db)
         .await
         .map_err(|err| {
@@ -774,14 +782,30 @@ pub async fn create_subscription(
             ApiResponse::new(500, json!({ "message": err.to_string() }))
         })?;
 
-    if let Some(existing) = existing_sub.clone() {
+    if let Some(ref existing) = existing_sub {
         if existing.status == SubscriptionStatus::Active
             || existing.status == SubscriptionStatus::Trial
         {
-            return Err(ApiResponse::new(
-                409,
-                json!({ "message": "Tenant already has an active subscription" }),
-            ));
+            let current_end = existing.current_period_end.unwrap_or(start);
+            let new_end = if current_end > start {
+                current_end + compute_period_duration(&plan.billing_cycle, None)
+            } else {
+                start + compute_period_duration(&plan.billing_cycle, None)
+            };
+
+            let mut update_model: main::entities::subscriptions::ActiveModel =
+                existing.to_owned().into();
+            update_model.pending_plan_id = Set(Some(plan.id));
+            update_model.updated_at = Set(Utc::now().naive_utc());
+            update_model
+                .update(&app_state.main_db)
+                .await
+                .map_err(|err| {
+                    log::error!("Failed to update subscription: {}", err);
+                    ApiResponse::new(500, json!({ "message": "Failed to update subscription" }))
+                })?;
+
+            return Ok((start, new_end));
         }
     }
 
@@ -791,6 +815,8 @@ pub async fn create_subscription(
     } else {
         SubscriptionStatus::PendingPayment
     };
+
+    let end = compute_period_end(start, &plan.billing_cycle, None);
 
     main::entities::subscriptions::ActiveModel {
         tenant_id: Set(tenant_id),
@@ -829,7 +855,9 @@ pub async fn create(
 
     let new_idempotency_key = Uuid::new_v4().to_string();
 
-    if let Some(cached_response) = check_idempotency(&app_state, tenant_id, &new_idempotency_key).await? {
+    if let Some(cached_response) =
+        check_idempotency(&app_state, tenant_id, &new_idempotency_key).await?
+    {
         log::info!(
             "Returning cached response for idempotency key: {}",
             new_idempotency_key
@@ -853,7 +881,7 @@ pub async fn create(
             "message": format!("{:?} payment failed", payment_method),
             "details": result.response_json,
         });
-        
+
         let _ = store_idempotency_response(
             &app_state,
             tenant_id,
@@ -871,7 +899,8 @@ pub async fn create(
         return Err(ApiResponse::new(500, error_response));
     }
 
-    let (start, end) = create_subscription(&app_state, data.subscription_id, tenant_id).await?;
+    let (start, end) =
+        create_or_update_subscription(&app_state, data.subscription_id, tenant_id).await?;
 
     let billing_item = main::entities::billing_line_items::ActiveModel {
         tenant_id: Set(tenant_id),
@@ -885,12 +914,12 @@ pub async fn create(
         metadata: Set(Some(result.response_json.clone())),
         ..Default::default()
     }
-        .insert(&app_state.main_db)
-        .await
-        .map_err(|err| {
-            log::error!("Failed to create billing line item: {}", err);
-            ApiResponse::new(500, json!({ "message": err.to_string() }))
-        })?;
+    .insert(&app_state.main_db)
+    .await
+    .map_err(|err| {
+        log::error!("Failed to create billing line item: {}", err);
+        ApiResponse::new(500, json!({ "message": err.to_string() }))
+    })?;
 
     let tenant = main::entities::tenants::Entity::find_by_id(tenant_id)
         .filter(main::entities::tenants::Column::DeletedAt.is_null())
@@ -929,7 +958,7 @@ pub async fn create(
         &req,
         Some(data.domain.clone()),
         None,
-        None
+        None,
     )
     .await
     .map_err(|err| {
@@ -954,12 +983,12 @@ pub async fn create(
         }))),
         ..Default::default()
     }
-        .insert(&app_state.main_db)
-        .await
-        .map_err(|err| {
-            log::error!("Failed to create payment transaction: {}", err);
-            ApiResponse::new(500, json!({ "message": err.to_string() }))
-        })?;
+    .insert(&app_state.main_db)
+    .await
+    .map_err(|err| {
+        log::error!("Failed to create payment transaction: {}", err);
+        ApiResponse::new(500, json!({ "message": err.to_string() }))
+    })?;
 
     let success_response = json!({
         "message": "Payment initiated successfully",
@@ -985,10 +1014,10 @@ pub async fn create(
 fn should_allow_retry(failure_reason: &Option<String>) -> bool {
     if let Some(reason) = failure_reason {
         let reason_lower = reason.to_lowercase();
-        reason_lower.contains("timeout") ||
-        reason_lower.contains("network") ||
-        reason_lower.contains("unavailable") ||
-        reason_lower.contains("503")
+        reason_lower.contains("timeout")
+            || reason_lower.contains("network")
+            || reason_lower.contains("unavailable")
+            || reason_lower.contains("503")
     } else {
         false
     }
@@ -1022,7 +1051,10 @@ pub async fn retry_payment(
         .as_ref()
         .and_then(|m| m["idempotency_key"].as_str())
         .ok_or_else(|| {
-            ApiResponse::new(400, json!({ "message": "Idempotency key not found in metadata" }))
+            ApiResponse::new(
+                400,
+                json!({ "message": "Idempotency key not found in metadata" }),
+            )
         })?;
 
     delete_idempotency_key(&app_state, tenant_id, idempotency_key).await?;
@@ -1032,7 +1064,8 @@ pub async fn retry_payment(
     let mut metadata = transaction.metadata.clone().unwrap_or_default();
     metadata["idempotency_key"] = serde_json::Value::String(new_idempotency_key.clone());
 
-    let mut active_model: main::entities::payment_transactions::ActiveModel = transaction.to_owned().into();
+    let mut active_model: main::entities::payment_transactions::ActiveModel =
+        transaction.to_owned().into();
     active_model.metadata = Set(Some(metadata));
     active_model.updated_at = Set(Utc::now().naive_utc());
     active_model
@@ -1164,7 +1197,10 @@ pub async fn mpesa_callback(
             .as_ref()
             .and_then(|m| m["idempotency_key"].as_str())
             .ok_or_else(|| {
-                ApiResponse::new(400, json!({ "message": "Idempotency key not found in metadata" }))
+                ApiResponse::new(
+                    400,
+                    json!({ "message": "Idempotency key not found in metadata" }),
+                )
             })?;
 
         delete_idempotency_key(&app_state, transaction.tenant_id, idempotency_key).await?;
@@ -1376,6 +1412,7 @@ async fn activate_subscription(
     let subscription = main::entities::subscriptions::Entity::find()
         .filter(main::entities::subscriptions::Column::Id.eq(subscription_id))
         .filter(main::entities::subscriptions::Column::TenantId.eq(tenant_id))
+        .filter(main::entities::subscriptions::Column::DeletedAt.is_null())
         .one(&app_state.main_db)
         .await
         .map_err(|err| {
@@ -1387,7 +1424,32 @@ async fn activate_subscription(
             json!({ "message": "Subscription not found" }),
         ))?;
 
-    let mut active_model: main::entities::subscriptions::ActiveModel = subscription.into();
+    let mut active_model: main::entities::subscriptions::ActiveModel =
+        subscription.to_owned().into();
+
+    if let Some(pending_plan_id) = subscription.pending_plan_id {
+        let plan = main::entities::subscription_plans::Entity::find_by_id(pending_plan_id)
+            .filter(main::entities::subscription_plans::Column::DeletedAt.is_null())
+            .one(&app_state.main_db)
+            .await
+            .map_err(|err| {
+                log::error!("Failed to fetch pending plan: {}", err);
+                ApiResponse::new(500, json!({ "message": "Failed to fetch pending plan" }))
+            })?
+            .ok_or(ApiResponse::new(
+                404,
+                json!({ "message": "Pending plan not found" }),
+            ))?;
+
+        active_model.plan_id = Set(plan.id);
+        active_model.max_facilities = Set(plan.max_facilities);
+        active_model.max_patients_per_month = Set(plan.max_patients_per_month);
+        active_model.storage_gb = Set(plan.storage_gb);
+        active_model.api_rate_limit_per_hour = Set(plan.api_rate_limit_per_hour);
+        active_model.trial_days = Set(Some(plan.trial_days));
+        active_model.pending_plan_id = Set(None);
+    }
+
     active_model.status = Set(SubscriptionStatus::Active);
     active_model.updated_at = Set(Utc::now().naive_utc());
     active_model

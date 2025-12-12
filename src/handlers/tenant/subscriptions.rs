@@ -6,11 +6,11 @@ use crate::{
         self,
         entities::sea_orm_active_enums::SubscriptionStatus,
         migrations::sea_orm::{
-            ActiveModelTrait, ColumnTrait, Condition, EntityTrait, PaginatorTrait, QueryFilter,
-            QueryOrder, QuerySelect, Set,
+            ActiveModelTrait, ColumnTrait, Condition, EntityTrait, JoinType, PaginatorTrait,
+            QueryFilter, QueryOrder, QuerySelect, RelationTrait, Set,
         },
     },
-    handlers::admin::subscriptions::{PlanDTO, SubscriptionDTO},
+    handlers::admin::subscriptions::SubscriptionDTO,
     utils::{
         api_response::ApiResponse, jwt::get_tenant_id, pagination::PaginationParams,
         permission::has_permission, validator_error::ValidationError,
@@ -33,7 +33,10 @@ pub async fn index(
 
     let mut stmt = main::entities::subscriptions::Entity::find()
         .filter(main::entities::subscriptions::Column::TenantId.eq(tenant_id))
-        .find_also_related(main::entities::subscription_plans::Entity);
+        .join(
+            JoinType::InnerJoin,
+            main::entities::subscriptions::Relation::SubscriptionPlans1.def(),
+        );
 
     if !has_permission("view_archived_subscriptions", &req).await? {
         stmt = stmt.filter(main::entities::subscriptions::Column::DeletedAt.is_null());
@@ -64,7 +67,7 @@ pub async fn index(
                 "plan_name",
             )
             .column(main::entities::subscriptions::Column::Status)
-            .into_model::<SubscriptionDTO, PlanDTO>()
+            .into_model::<SubscriptionDTO>()
             .all(&app_state.main_db)
             .await
             .map_err(|err| {
@@ -72,12 +75,12 @@ pub async fn index(
                 ApiResponse::new(500, json!({ "message": "Failed to fetch subscriptions" }))
             })?
             .iter()
-            .map(|(sub, plan)| {
+            .map(|sub| {
                 json!({
                     "pid": sub.pid,
                     "tenant_id": sub.tenant_id,
                     "plan_id": sub.plan_id,
-                    "plan_name": plan.as_ref().map(|p| p.plan_name.clone()),
+                    "plan_name": sub.plan_name,
                     "status": sub.status,
                 })
             })
@@ -106,7 +109,7 @@ pub async fn index(
         .column(main::entities::subscriptions::Column::Status)
         .column(main::entities::subscriptions::Column::CreatedAt)
         .column(main::entities::subscriptions::Column::UpdatedAt)
-        .into_model::<SubscriptionDTO, PlanDTO>()
+        .into_model::<SubscriptionDTO>()
         .paginate(&app_state.main_db, limit);
 
     let total_items = paginator
@@ -126,12 +129,12 @@ pub async fn index(
             ApiResponse::new(500, json!({ "message": "Failed to fetch subscriptions" }))
         })?
         .into_iter()
-        .map(|(sub, plan)| {
+        .map(|sub| {
             json!({
                 "pid": sub.pid,
                 "tenant_id": sub.tenant_id,
                 "plan_id": sub.plan_id,
-                "plan_name": plan.as_ref().map(|p| p.plan_name.clone()),
+                "plan_name": sub.plan_name,
                 "status": sub.status,
                 "created_at": sub.created_at,
                 "updated_at": sub.updated_at,
@@ -169,7 +172,10 @@ pub async fn show(
     }
 
     let subscription = stmt
-        .find_also_related(main::entities::subscription_plans::Entity)
+        .join(
+            JoinType::InnerJoin,
+            main::entities::subscriptions::Relation::SubscriptionPlans1.def(),
+        )
         .select_only()
         .column(main::entities::subscriptions::Column::Pid)
         .column(main::entities::subscriptions::Column::TenantId)
@@ -190,7 +196,7 @@ pub async fn show(
         .column(main::entities::subscriptions::Column::ApiRateLimitPerHour)
         .column(main::entities::subscriptions::Column::CreatedAt)
         .column(main::entities::subscriptions::Column::UpdatedAt)
-        .into_model::<SubscriptionDTO, PlanDTO>()
+        .into_model::<SubscriptionDTO>()
         .one(&app_state.main_db)
         .await
         .map_err(|err| {
@@ -202,31 +208,29 @@ pub async fn show(
             json!({ "message": "Subscription not found" }),
         ))?;
 
-    let (sub, plan) = subscription;
-
     Ok(ApiResponse::new(
         200,
         json!({
             "subscription": {
-                "pid": sub.pid,
-                "tenant_id": sub.tenant_id,
-                "plan_id": sub.plan_id,
-                "plan_name": plan.as_ref().map(|p| p.plan_name.clone()),
-                "status": sub.status,
-                "current_period_start": sub.current_period_start,
-                "current_period_end": sub.current_period_end,
-                "cancel_at_period_end": sub.cancel_at_period_end,
-                "cancelled_at": sub.cancelled_at,
-                "cancellation_reason": sub.cancellation_reason,
-                "custom_price": sub.custom_price,
-                "trial_days": sub.trial_days,
-                "max_facilities": sub.max_facilities,
-                "max_users": sub.max_users,
-                "max_patients_per_month": sub.max_patients_per_month,
-                "storage_gb": sub.storage_gb,
-                "api_rate_limit_per_hour": sub.api_rate_limit_per_hour,
-                "created_at": sub.created_at,
-                "updated_at": sub.updated_at,
+                "pid": subscription.pid,
+                "tenant_id": subscription.tenant_id,
+                "plan_id": subscription.plan_id,
+                "plan_name": subscription.plan_name,
+                "status": subscription.status,
+                "current_period_start": subscription.current_period_start,
+                "current_period_end": subscription.current_period_end,
+                "cancel_at_period_end": subscription.cancel_at_period_end,
+                "cancelled_at": subscription.cancelled_at,
+                "cancellation_reason": subscription.cancellation_reason,
+                "custom_price": subscription.custom_price,
+                "trial_days": subscription.trial_days,
+                "max_facilities": subscription.max_facilities,
+                "max_users": subscription.max_users,
+                "max_patients_per_month": subscription.max_patients_per_month,
+                "storage_gb": subscription.storage_gb,
+                "api_rate_limit_per_hour": subscription.api_rate_limit_per_hour,
+                "created_at": subscription.created_at,
+                "updated_at": subscription.updated_at,
             },
             "message": "Subscription fetched successfully",
         }),

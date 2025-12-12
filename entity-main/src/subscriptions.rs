@@ -14,6 +14,7 @@ pub struct Model {
     pub pid: Uuid,
     pub tenant_id: i32,
     pub plan_id: i32,
+    pub pending_plan_id: Option<i32>,
     pub status: SubscriptionStatus,
     pub current_period_start: Option<DateTime>,
     pub current_period_end: Option<DateTime>,
@@ -38,12 +39,22 @@ pub struct Model {
     pub payment_transactions: HasMany<super::payment_transactions::Entity>,
     #[sea_orm(
         belongs_to,
+        relation_enum = "SubscriptionPlans2",
+        from = "pending_plan_id",
+        to = "id",
+        on_update = "NoAction",
+        on_delete = "SetNull"
+    )]
+    pub subscription_plans_2: HasOne<super::subscription_plans::Entity>,
+    #[sea_orm(
+        belongs_to,
+        relation_enum = "SubscriptionPlans1",
         from = "plan_id",
         to = "id",
         on_update = "NoAction",
         on_delete = "Cascade"
     )]
-    pub subscription_plans: HasOne<super::subscription_plans::Entity>,
+    pub subscription_plans_1: HasOne<super::subscription_plans::Entity>,
     #[sea_orm(
         belongs_to,
         from = "tenant_id",

@@ -1,9 +1,9 @@
 pub mod patient_insurance;
 pub mod patients;
+pub mod payments;
 pub mod scope;
 pub mod subscription_plans;
+pub mod subscriptions;
 pub mod tenant_applications;
 pub mod tenants;
 pub mod users;
-pub mod payments;
-pub mod subscriptions;

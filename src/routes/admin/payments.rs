@@ -17,13 +17,17 @@ pub fn config(config: &mut web::ServiceConfig) {
             )
             .service(
                 web::resource("/show/tenant/{pid}")
-                    .wrap(Permission::new("view_tenant_payment_transaction".to_string()))
+                    .wrap(Permission::new(
+                        "view_tenant_payment_transaction".to_string(),
+                    ))
                     .route(web::get().to(payments::show_by_tenant)),
             )
             .service(
                 web::resource("/status/{pid}")
-                    .wrap(Permission::new("activate_or_deactivate_payment_transaction".to_string()))
+                    .wrap(Permission::new(
+                        "activate_or_deactivate_payment_transaction".to_string(),
+                    ))
                     .route(web::post().to(payments::set_active_status)),
-            )
+            ),
     );
 }

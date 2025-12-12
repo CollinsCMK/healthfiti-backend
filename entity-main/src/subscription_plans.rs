@@ -41,8 +41,6 @@ pub struct Model {
     pub updated_at: DateTime,
     #[sea_orm(has_many)]
     pub subscription_plan_features: HasMany<super::subscription_plan_features::Entity>,
-    #[sea_orm(has_many)]
-    pub subscriptions: HasMany<super::subscriptions::Entity>,
 }
 
 impl ActiveModelBehavior for ActiveModel {}

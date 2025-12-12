@@ -49,6 +49,14 @@ impl MigrationTrait for Migration {
                             .to(SubscriptionPlans::Table, SubscriptionPlans::Id)
                             .on_delete(ForeignKeyAction::Cascade),
                     )
+                    .col(integer_null(Subscriptions::PendingPlanId))
+                    .foreign_key(
+                        ForeignKey::create()
+                            .name("fk-subscriptions-pending_plan_id")
+                            .from(Subscriptions::Table, Subscriptions::PendingPlanId)
+                            .to(SubscriptionPlans::Table, SubscriptionPlans::Id)
+                            .on_delete(ForeignKeyAction::SetNull),
+                    )
                     .col(
                         enumeration(
                             Subscriptions::Status,
@@ -132,6 +140,7 @@ enum Subscriptions {
     Pid,
     TenantId,
     PlanId,
+    PendingPlanId,
     Status,
     CurrentPeriodStart,
     CurrentPeriodEnd,
