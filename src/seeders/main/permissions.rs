@@ -191,6 +191,37 @@ pub async fn seed_permissions() -> Result<ApiResponse, ApiResponse> {
             "Allows the user to cancel a subscription",
             "Subscriptions",
         ),
+        // Billing Line Items
+        (
+            "view_all_billing_line_items",
+            "Allows the user to view all billing line items in the system",
+            "Billing Line Items",
+        ),
+        (
+            "view_billing_line_item",
+            "Allows the user to view a specific billing line item",
+            "Billing Line Items",
+        ),
+        (
+            "view_archived_billing_line_items",
+            "Allows the user to view archived/soft-deleted billing line items",
+            "Billing Line Items",
+        ),
+        (
+            "delete_billing_line_item",
+            "Permanently deletes a billing line item",
+            "Billing Line Items",
+        ),
+        (
+            "soft_delete_billing_line_item",
+            "Allows the user to soft-delete a billing line item",
+            "Billing Line Items",
+        ),
+        (
+            "restore_billing_line_item",
+            "Allows the user to restore a soft-deleted billing line item",
+            "Billing Line Items",
+        ),
     ];
 
     // Convert default_permissions to Vec of objects expected by /create API

@@ -582,7 +582,7 @@ pub async fn destroy(
                 json!({ "message": "Failed to find subscription plan" }),
             )
         })?
-        .ok_or(ApiResponse::new(
+        .ok_or_else(|| ApiResponse::new(
             404,
             json!({ "message": "Subscription plan not found" }),
         ))?;
